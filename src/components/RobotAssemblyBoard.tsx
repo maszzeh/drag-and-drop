@@ -48,6 +48,11 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
     sounds.speak(`Tarik ${part.name}`);
   };
 
+  const handleDragEnd = () => {
+    setDraggedPartId(null);
+    setActiveDropZone(null);
+  };
+
   // Drag over target slot
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
@@ -75,12 +80,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
     setDraggedPartId(null);
   };
 
-  // Tap-to-snap accessibility (great for 4-year-olds on touchscreens)
-  const handlePartTap = (part: RobotPart) => {
-    if (part.isInstalled) return;
-    installPart(part);
-  };
-
+  // Install part into slot after matching drop
   const installPart = (part: RobotPart) => {
     sounds.playSnap();
     sounds.speak(`${part.name} terpasang!`);
@@ -211,8 +211,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                       onDragOver={e => handleDragOver(e, part.targetId)}
                       onDragLeave={handleDragLeave}
                       onDrop={e => handleDrop(e, part.targetId)}
-                      onClick={() => !part.isInstalled && installPart(part)}
-                      className={`absolute flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                      className={`absolute flex items-center justify-center transition-all duration-300 ${
                         part.isInstalled
                           ? 'z-20 scale-100 filter drop-shadow-md animate-fadeIn'
                           : isHovered
@@ -276,7 +275,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                   <span>🧰 KOTAK BAGIAN ROBOT</span>
                 </h3>
                 <p className="text-xs font-semibold text-amber-800">
-                  Bentuk bagian robot asli — Sentuh atau tarik ke siluetnya 👆
+                  Bentuk bagian robot asli — Tarik ke siluetnya yang cocok 👆
                 </p>
               </div>
               <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-amber-200 text-amber-900">
@@ -292,7 +291,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                     key={part.id}
                     draggable={!part.isInstalled}
                     onDragStart={e => handleDragStart(e, part)}
-                    onClick={() => handlePartTap(part)}
+                    onDragEnd={handleDragEnd}
                     className={`rounded-2xl p-3 border-2 transition-all duration-200 flex items-center gap-3 ${
                       part.isInstalled
                         ? 'bg-slate-100/90 border-slate-200 opacity-60 cursor-default'
