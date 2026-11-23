@@ -43,6 +43,13 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
   const roverSampleArmRef = useRef<THREE.Group | null>(null);
   const puppyHeartRef = useRef<THREE.Mesh | null>(null);
   const puppyEyesRef = useRef<THREE.Mesh[]>([]);
+  const bobiLeftElbowRef = useRef<THREE.Group | null>(null);
+  const bobiRightElbowRef = useRef<THREE.Group | null>(null);
+  const bobiAntennaBulbsRef = useRef<THREE.Mesh[]>([]);
+  const bobiChestCoreRef = useRef<THREE.Mesh | null>(null);
+  const bobiMouthRef = useRef<THREE.Mesh | null>(null);
+  const bobiEyesRef = useRef<THREE.Mesh[]>([]);
+  const bobiMagnetGlowRef = useRef<THREE.Mesh | null>(null);
 
   const [viewAngle, setViewAngle] = useState<'front' | 'top'>('front');
   const setTopViewRef = useRef<(() => void) | null>(null);
@@ -61,10 +68,13 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     if (robotType === 'arm') {
-      camera.position.set(0, 1.4, 6.4);
-      camera.lookAt(0, 0.5, 0);
+      camera.position.set(0, 1.4, 6.8);
+      camera.lookAt(0, 0.55, 0);
+    } else if (robotType === 'biped') {
+      camera.position.set(0, 0.9, 6.4);
+      camera.lookAt(0, 0.45, 0);
     } else {
-      camera.position.set(0, 0.6, 5.5);
+      camera.position.set(0, 0.6, 5.8);
       camera.lookAt(0, 0.25, 0);
     }
 
@@ -117,9 +127,18 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     droneDownwashRef.current = [];
     puppyLegsRef.current = [];
     puppyEyesRef.current = [];
+    bobiAntennaBulbsRef.current = [];
+    bobiEyesRef.current = [];
 
     // Color definitions
-    const matBlue = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3, metalness: 0.2 });
+    const matBlue = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.28, metalness: 0.25 });
+    const matBobiWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25, metalness: 0.15 });
+    const matBobiVisor = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.12, metalness: 0.88 });
+    const matBobiCoreGlow = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.2 });
+    const matBobiAntennaGlow = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xfacc15, emissiveIntensity: 1.2 });
+    const matBobiRubberWheel = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85, metalness: 0.1 });
+    const matMagnetRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.25, metalness: 0.35 });
+    const matMagnetSpark = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xfacc15, emissiveIntensity: 1.5, roughness: 0.1 });
     const matOrange = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.3, metalness: 0.2 });
     const matPurple = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, roughness: 0.3, metalness: 0.2 });
     const matTeal = new THREE.MeshStandardMaterial({ color: 0x0d9488, roughness: 0.3, metalness: 0.2 });
@@ -309,102 +328,317 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     }
 
     if (robotType === 'biped') {
-      // --- ROBO-BOBI (Humanoid Biped) ---
-      // Body
-      const bodyGeo = new THREE.BoxGeometry(1.4, 1.2, 1.0);
-      const body = new THREE.Mesh(bodyGeo, matBlue);
-      body.position.y = -0.2;
-      robotGroup.add(body);
+      // --- ROBO-BOBI (High-Fidelity Humanoid Companion Robot) ---
+      const bobiGroup = new THREE.Group();
+      bobiGroup.position.y = 0.20;
+      robotGroup.add(bobiGroup);
 
-      // Battery Screen on Chest
-      const screenGeo = new THREE.BoxGeometry(0.8, 0.5, 0.1);
-      const screen = new THREE.Mesh(screenGeo, matHeart);
-      screen.position.set(0, -0.2, 0.52);
-      robotGroup.add(screen);
+      // 1. Torso: Multi-Layer Armored Chest & Power Core
+      const chestGroup = new THREE.Group();
+      chestGroup.position.set(0, 0.05, 0);
+      bobiGroup.add(chestGroup);
 
-      // Head
-      const headGroup = new THREE.Group();
-      headGroup.position.set(0, 0.9, 0);
-      headRef.current = headGroup;
+      // Main Torso Armor Shell (Royal Blue)
+      const torsoGeo = new THREE.BoxGeometry(1.35, 1.25, 0.95);
+      const torso = new THREE.Mesh(torsoGeo, matBlue);
+      torso.castShadow = true;
+      chestGroup.add(torso);
 
-      const headGeo = new THREE.BoxGeometry(1.2, 0.9, 0.9);
-      const head = new THREE.Mesh(headGeo, matBlue);
-      headGroup.add(head);
+      // Side Ergonomic Flank Panels (White composite)
+      const flankGeo = new THREE.BoxGeometry(1.42, 1.05, 0.75);
+      const flank = new THREE.Mesh(flankGeo, matBobiWhite);
+      flank.position.set(0, 0, 0);
+      flank.castShadow = true;
+      chestGroup.add(flank);
 
-      // Eyes Screen
-      const eyeScreenGeo = new THREE.BoxGeometry(0.9, 0.4, 0.08);
-      const eyeScreen = new THREE.Mesh(eyeScreenGeo, matDark);
-      eyeScreen.position.set(0, 0.05, 0.46);
-      headGroup.add(eyeScreen);
+      // Collar Ring / Neck Flange
+      const neckFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.38, 0.12, 24), matChrome);
+      neckFlange.position.set(0, 0.65, 0);
+      chestGroup.add(neckFlange);
 
-      // Glowing Cyan Eyes
-      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matGlowEye);
-      eyeL.position.set(-0.25, 0.05, 0.52);
-      headGroup.add(eyeL);
+      // Chest Recessed Screen Frame (Dark Acrylic)
+      const screenFrame = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.65, 0.12), matBobiVisor);
+      screenFrame.position.set(0, 0.05, 0.46);
+      chestGroup.add(screenFrame);
 
-      const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matGlowEye);
-      eyeR.position.set(0.25, 0.05, 0.52);
-      headGroup.add(eyeR);
+      // Bezel Chrome Trim
+      const bezelTrim = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.68, 0.04), matChrome);
+      bezelTrim.position.set(0, 0.05, 0.44);
+      chestGroup.add(bezelTrim);
 
-      // Antennas
-      const antL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), matDark);
-      antL.position.set(-0.4, 0.6, 0);
-      headGroup.add(antL);
-      const bulbL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matYellow);
-      bulbL.position.set(-0.4, 0.8, 0);
-      headGroup.add(bulbL);
+      // High-Tech Chest Battery Gauge (Segmented glowing LED bars)
+      for (let i = 0; i < 4; i++) {
+        const barGeo = new THREE.BoxGeometry(0.12, 0.26 + i * 0.05, 0.02);
+        const bar = new THREE.Mesh(barGeo, matBobiCoreGlow);
+        bar.position.set(-0.24 + i * 0.16, 0.02 + i * 0.025, 0.52);
+        chestGroup.add(bar);
+      }
 
-      const antR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), matDark);
-      antR.position.set(0.4, 0.6, 0);
-      headGroup.add(antR);
-      const bulbR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matYellow);
-      bulbR.position.set(0.4, 0.8, 0);
-      headGroup.add(bulbR);
+      // Glowing Pulsing Center Energy Heart Icon
+      const heartIcon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), matBobiCoreGlow);
+      heartIcon.position.set(0, 0.18, 0.53);
+      chestGroup.add(heartIcon);
+      bobiChestCoreRef.current = heartIcon;
 
-      robotGroup.add(headGroup);
+      // 2. Articulated Head & Expressive Facial Sensors
+      const headPivot = new THREE.Group();
+      headPivot.position.set(0, 0.88, 0);
+      bobiGroup.add(headPivot);
+      headRef.current = headPivot;
 
-      // Left Arm (waving arm)
-      const lArm = new THREE.Group();
-      lArm.position.set(-0.9, 0.2, 0);
-      leftArmRef.current = lArm;
-      const lArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 16), matBlue);
-      lArmMesh.position.y = -0.35;
-      lArm.add(lArmMesh);
-      const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), matYellow);
-      lHand.position.y = -0.85;
-      lArm.add(lHand);
-      robotGroup.add(lArm);
+      // Chrome Neck Servo Cylinder
+      const neckJoint = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.22, 20), matChrome);
+      neckJoint.position.set(0, -0.11, 0);
+      headPivot.add(neckJoint);
 
-      // Right Arm (gripper)
-      const rArm = new THREE.Group();
-      rArm.position.set(0.9, 0.2, 0);
-      rightArmRef.current = rArm;
-      const rArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 16), matBlue);
-      rArmMesh.position.y = -0.35;
-      rArm.add(rArmMesh);
-      const rHand = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.06, 16, 32, Math.PI), matYellow);
-      rHand.position.set(0, -0.85, 0);
-      rHand.rotation.z = Math.PI / 2;
-      rArm.add(rHand);
-      robotGroup.add(rArm);
+      // Main Head Helmet (Rounded friendly pearlescent blue dome)
+      const headGeo = new THREE.BoxGeometry(1.22, 0.95, 0.98);
+      const headMesh = new THREE.Mesh(headGeo, matBlue);
+      headMesh.position.set(0, 0.36, 0);
+      headMesh.castShadow = true;
+      headPivot.add(headMesh);
 
-      // Roller Feet Base
-      const feetBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.25, 0.9), matDark);
-      feetBase.position.y = -0.95;
-      robotGroup.add(feetBase);
+      // White Ear Pods / Headset Sides
+      const earPodL = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.12, 24), matBobiWhite);
+      earPodL.rotateZ(Math.PI / 2);
+      earPodL.position.set(-0.64, 0.36, 0);
+      headPivot.add(earPodL);
 
-      // 2 Big Roller Wheels
-      const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.35, 24);
-      wheelGeo.rotateZ(Math.PI / 2);
-      const wheelL = new THREE.Mesh(wheelGeo, matDark);
-      wheelL.position.set(-0.55, -1.2, 0);
-      robotGroup.add(wheelL);
-      wheelsRef.current.push(wheelL);
+      const earPodR = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.12, 24), matBobiWhite);
+      earPodR.rotateZ(Math.PI / 2);
+      earPodR.position.set(0.64, 0.36, 0);
+      headPivot.add(earPodR);
 
-      const wheelR = new THREE.Mesh(wheelGeo, matDark);
-      wheelR.position.set(0.55, -1.2, 0);
-      robotGroup.add(wheelR);
-      wheelsRef.current.push(wheelR);
+      // Glossy Obsidian Faceplate Visor
+      const faceVisorGeo = new THREE.BoxGeometry(0.98, 0.52, 0.12);
+      const faceVisor = new THREE.Mesh(faceVisorGeo, matBobiVisor);
+      faceVisor.position.set(0, 0.36, 0.48);
+      headPivot.add(faceVisor);
+
+      // Glowing Cyan Digital OLED Eyes (With pupil depth)
+      const eyeL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 20), matGlowEye);
+      eyeL.rotateX(Math.PI / 2);
+      eyeL.position.set(-0.25, 0.4, 0.54);
+      headPivot.add(eyeL);
+
+      const eyeR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 20), matGlowEye);
+      eyeR.rotateX(Math.PI / 2);
+      eyeR.position.set(0.25, 0.4, 0.54);
+      headPivot.add(eyeR);
+      bobiEyesRef.current = [eyeL, eyeR];
+
+      // Interactive Sound/Voice Speaker Mouth (Pulses when beeping)
+      const mouthGeo = new THREE.BoxGeometry(0.36, 0.06, 0.03);
+      const mouthMesh = new THREE.Mesh(mouthGeo, matGlowEye);
+      mouthMesh.position.set(0, 0.2, 0.54);
+      headPivot.add(mouthMesh);
+      bobiMouthRef.current = mouthMesh;
+
+      // Dual Springy Communication Antennas with Glowing Bulbs
+      const antennaConfigs = [-0.38, 0.38];
+      antennaConfigs.forEach(ax => {
+        // Antenna Base Socket
+        const antSocket = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 16), matChrome);
+        antSocket.position.set(ax, 0.86, 0);
+        headPivot.add(antSocket);
+
+        // Flexible spring mast
+        const antMast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.26, 12), matDark);
+        antMast.position.set(ax, 1.00, 0);
+        headPivot.add(antMast);
+
+        // Top Status Light Bulb
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 16), matBobiAntennaGlow);
+        bulb.position.set(ax, 1.18, 0);
+        headPivot.add(bulb);
+        bobiAntennaBulbsRef.current.push(bulb);
+      });
+
+      // 3. Articulated Dual-Segment Robotic Arms & End-Effectors
+      // Left Arm: Friendly Waving Arm (Shoulder + Bicep + Elbow + Hand)
+      const lShoulderGroup = new THREE.Group();
+      lShoulderGroup.position.set(-0.86, 0.40, 0);
+      bobiGroup.add(lShoulderGroup);
+      leftArmRef.current = lShoulderGroup;
+
+      const lShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), matChrome);
+      lShoulderGroup.add(lShoulderJoint);
+
+      const lBicep = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.45, 16), matBlue);
+      lBicep.position.set(0, -0.22, 0);
+      lBicep.castShadow = true;
+      lShoulderGroup.add(lBicep);
+
+      const lElbowGroup = new THREE.Group();
+      lElbowGroup.position.set(0, -0.45, 0);
+      lShoulderGroup.add(lElbowGroup);
+      bobiLeftElbowRef.current = lElbowGroup;
+
+      const lElbowJoint = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.18, 16), matChrome);
+      lElbowJoint.rotateZ(Math.PI / 2);
+      lElbowGroup.add(lElbowJoint);
+
+      const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.42, 16), matBobiWhite);
+      lForearm.position.set(0, -0.21, 0);
+      lForearm.castShadow = true;
+      lElbowGroup.add(lForearm);
+
+      // Welcoming Humanoid Hand (Palm + articulated fingers)
+      const lPalm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.08), matYellow);
+      lPalm.position.set(0, -0.46, 0);
+      lElbowGroup.add(lPalm);
+
+      for (let f = -1; f <= 1; f++) {
+        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 8), matYellow);
+        finger.position.set(f * 0.06, -0.56, 0);
+        lElbowGroup.add(finger);
+      }
+
+      // Right Arm: Industrial Magnetic Claw End-Effector
+      const rShoulderGroup = new THREE.Group();
+      rShoulderGroup.position.set(0.86, 0.40, 0);
+      bobiGroup.add(rShoulderGroup);
+      rightArmRef.current = rShoulderGroup;
+
+      const rShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), matChrome);
+      rShoulderGroup.add(rShoulderJoint);
+
+      const rBicep = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.45, 16), matBlue);
+      rBicep.position.set(0, -0.22, 0);
+      rBicep.castShadow = true;
+      rShoulderGroup.add(rBicep);
+
+      const rElbowGroup = new THREE.Group();
+      rElbowGroup.position.set(0, -0.45, 0);
+      rShoulderGroup.add(rElbowGroup);
+      bobiRightElbowRef.current = rElbowGroup;
+
+      const rElbowJoint = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.18, 16), matChrome);
+      rElbowJoint.rotateZ(Math.PI / 2);
+      rElbowGroup.add(rElbowJoint);
+
+      const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.42, 16), matBobiWhite);
+      rForearm.position.set(0, -0.21, 0);
+      rForearm.castShadow = true;
+      rElbowGroup.add(rForearm);
+
+      // --- Real Horseshoe Magnetic Claw End-Effector (Tapal Kuda Merah & Kutub Perak) ---
+      const magnetGroup = new THREE.Group();
+      magnetGroup.position.set(0, -0.42, 0);
+      rElbowGroup.add(magnetGroup);
+
+      // Swivel Wrist Mount Collar
+      const wristCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.11, 0.08, 20), matDark);
+      wristCollar.position.set(0, 0, 0);
+      magnetGroup.add(wristCollar);
+
+      const mountAdapter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.14), matChrome);
+      mountAdapter.position.set(0, -0.06, 0);
+      magnetGroup.add(mountAdapter);
+
+      // Red Horseshoe Upper U-Curve Arch
+      const archGeo = new THREE.TorusGeometry(0.16, 0.062, 16, 32, Math.PI);
+      const arch = new THREE.Mesh(archGeo, matMagnetRed);
+      arch.rotation.z = 0;
+      arch.position.set(0, -0.10, 0);
+      arch.castShadow = true;
+      magnetGroup.add(arch);
+
+      // Left & Right Red Magnet Prongs (Extending downwards from the arch)
+      const prongGeo = new THREE.BoxGeometry(0.124, 0.22, 0.124);
+      const prongL = new THREE.Mesh(prongGeo, matMagnetRed);
+      prongL.position.set(-0.16, -0.21, 0);
+      prongL.castShadow = true;
+      magnetGroup.add(prongL);
+
+      const prongR = new THREE.Mesh(prongGeo, matMagnetRed);
+      prongR.position.set(0.16, -0.21, 0);
+      prongR.castShadow = true;
+      magnetGroup.add(prongR);
+
+      // North & South Silver Chrome Magnetic Pole Caps
+      const poleGeo = new THREE.BoxGeometry(0.136, 0.10, 0.136);
+      const poleL = new THREE.Mesh(poleGeo, matChrome);
+      poleL.position.set(-0.16, -0.34, 0);
+      poleL.castShadow = true;
+      magnetGroup.add(poleL);
+
+      const poleR = new THREE.Mesh(poleGeo, matChrome);
+      poleR.position.set(0.16, -0.34, 0);
+      poleR.castShadow = true;
+      magnetGroup.add(poleR);
+
+      // Magnetic Force Field Spark Core (Pulsing between North and South poles)
+      const sparkCore = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), matMagnetSpark);
+      sparkCore.position.set(0, -0.34, 0);
+      magnetGroup.add(sparkCore);
+      bobiMagnetGlowRef.current = sparkCore;
+
+      // Cyan Magnetic Flux Arc between poles
+      const fluxArcGeo = new THREE.TorusGeometry(0.16, 0.018, 12, 24, Math.PI);
+      const fluxArc = new THREE.Mesh(fluxArcGeo, matGlowEye);
+      fluxArc.rotation.z = Math.PI;
+      fluxArc.position.set(0, -0.34, 0);
+      magnetGroup.add(fluxArc);
+
+      // 4. Streamlined Mobility Drive Base & Roller Wheels
+      const basePlatform = new THREE.Group();
+      basePlatform.position.set(0, -0.72, 0);
+      bobiGroup.add(basePlatform);
+
+      // Streamlined Segway-style Scooter Deck
+      const deckGeo = new THREE.BoxGeometry(1.65, 0.24, 0.88);
+      const deck = new THREE.Mesh(deckGeo, matDark);
+      deck.castShadow = true;
+      basePlatform.add(deck);
+
+      // Blue accent bumper trim with LED ground-glow
+      const deckTrimGeo = new THREE.BoxGeometry(1.68, 0.06, 0.9);
+      const deckTrim = new THREE.Mesh(deckTrimGeo, matGlowEye);
+      deckTrim.position.set(0, -0.06, 0);
+      basePlatform.add(deckTrim);
+
+      // 2 High-Traction Roller Wheels with Multi-Spoke Rims
+      const wheelTireGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.28, 28);
+      wheelTireGeo.rotateZ(Math.PI / 2);
+
+      const wheelRimGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.29, 20);
+      wheelRimGeo.rotateZ(Math.PI / 2);
+
+      const wheelHubGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.3, 16);
+      wheelHubGeo.rotateZ(Math.PI / 2);
+
+      const wheelPositions = [-0.68, 0.68];
+      wheelPositions.forEach(wx => {
+        const wGroup = new THREE.Group();
+        wGroup.position.set(wx, -0.22, 0);
+
+        // Matte rubber tire
+        const tire = new THREE.Mesh(wheelTireGeo, matBobiRubberWheel);
+        tire.castShadow = true;
+        wGroup.add(tire);
+
+        // Silver alloy rim
+        const rim = new THREE.Mesh(wheelRimGeo, matChrome);
+        wGroup.add(rim);
+
+        // Center hub
+        const hub = new THREE.Mesh(wheelHubGeo, matBlue);
+        wGroup.add(hub);
+
+        basePlatform.add(wGroup);
+        wheelsRef.current.push(tire);
+      });
+
+      // Front & Rear Caster Balance Rollers
+      const casterGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const casterF = new THREE.Mesh(casterGeo, matChrome);
+      casterF.position.set(0, -0.22, 0.34);
+      basePlatform.add(casterF);
+
+      const casterB = new THREE.Mesh(casterGeo, matChrome);
+      casterB.position.set(0, -0.22, -0.34);
+      basePlatform.add(casterB);
 
     } else if (robotType === 'rover') {
       // --- ROBO-ROVER (High-Fidelity Mars Exploration Rover) ---
@@ -1102,9 +1336,9 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     }
 
     // 5. User Interaction: 3D Spherical Orbit Drag (Look from above, front, or rotate 360°)
-    const orbitRadius = robotType === 'arm' ? 6.4 : 5.5;
-    const targetCenterY = robotType === 'arm' ? 0.5 : 0.25;
-    const defaultPhi = robotType === 'arm' ? 0.25 : 0.22;
+    const orbitRadius = robotType === 'arm' ? 6.8 : robotType === 'biped' ? 6.4 : 5.8;
+    const targetCenterY = robotType === 'arm' ? 0.55 : robotType === 'biped' ? 0.45 : 0.25;
+    const defaultPhi = robotType === 'arm' ? 0.25 : robotType === 'biped' ? 0.18 : 0.22;
 
     let targetTheta = 0;
     let targetPhi = defaultPhi;
@@ -1394,29 +1628,152 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
           }
 
         } else if (robotType === 'biped') {
-          // --- ROBO-BOBI (Humanoid Biped) ---
-          const baseY = 0.35 + yOffset;
-          if (isDancing) {
-            robotGroup.position.y = baseY + Math.sin(time * 6) * 0.18;
-            robotGroup.rotation.z = Math.sin(time * 5) * 0.08;
+          // --- ROBO-BOBI (Humanoid Companion Social Robotics) ---
+          const isDriving = actionTrigger === 'move_forward';
+          const isWaving = actionTrigger === 'wave_hand' || isDancing;
+          const isSpeaking = actionTrigger === 'beep_sound';
+
+          const bobiBaseY = 0.0 + yOffset;
+
+          if (isDriving) {
+            // Dynamic forward acceleration Segway lean & gentle balance sway
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.012;
+            robotGroup.rotation.x = -0.07 + Math.sin(time * 8) * 0.02;
+            robotGroup.rotation.z = Math.sin(time * 5) * 0.015;
+          } else if (isDancing) {
+            // Cheerful robotic boogie celebration
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.08;
+            robotGroup.rotation.z = Math.sin(time * 5) * 0.06;
+            robotGroup.rotation.x = Math.sin(time * 4) * 0.03;
           } else {
-            robotGroup.position.y = baseY + Math.sin(time * 2) * 0.06;
+            // Lifelike calm balance breathing
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 2.5) * 0.008;
+            robotGroup.rotation.x = 0;
+            robotGroup.rotation.z = 0;
           }
 
-          // Waving arm animation
-          if (leftArmRef.current) {
-            if (isDancing || actionTrigger === 'wave_hand') {
-              leftArmRef.current.rotation.z = Math.sin(time * 10) * 0.6 + 0.6;
+          // Articulated Head & Friendly Gaze
+          if (headRef.current) {
+            if (isSpeaking) {
+              // Enthusiastic speaking head nods
+              headRef.current.rotation.x = -0.15 + Math.sin(time * 16) * 0.12;
+              headRef.current.rotation.y = Math.sin(time * 8) * 0.1;
+              headRef.current.rotation.z = 0;
+            } else if (isWaving) {
+              // Tilt head warmly towards user
+              headRef.current.rotation.z = -0.12 + Math.sin(time * 4) * 0.05;
+              headRef.current.rotation.y = 0.12;
+              headRef.current.rotation.x = Math.sin(time * 3) * 0.04;
+            } else if (isDriving) {
+              // Forward attentive posture
+              headRef.current.rotation.x = 0.06;
+              headRef.current.rotation.y = Math.sin(time * 2) * 0.05;
+              headRef.current.rotation.z = 0;
             } else {
-              leftArmRef.current.rotation.z = Math.sin(time * 2) * 0.1;
+              // Natural curious social gaze (looking around warmly)
+              headRef.current.rotation.y = Math.sin(time * 1.4) * 0.22;
+              headRef.current.rotation.z = Math.sin(time * 1.1) * 0.08;
+              headRef.current.rotation.x = Math.sin(time * 2.0) * 0.05;
             }
           }
 
-          // Spinning wheels for biped
-          if (actionTrigger === 'move_forward') {
+          // Articulated 2-Segment Waving Left Arm (Lifted outward away from body)
+          if (leftArmRef.current) {
+            if (isWaving) {
+              // Lift upper arm high outward to the left in a joyful wave
+              leftArmRef.current.rotation.z = -1.25 + Math.sin(time * 4) * 0.15;
+              leftArmRef.current.rotation.x = 0.2 + Math.sin(time * 3) * 0.12;
+              if (bobiLeftElbowRef.current) {
+                // Forearm and palm wave enthusiastically side-to-side
+                bobiLeftElbowRef.current.rotation.z = -0.45 + Math.sin(time * 12) * 0.55;
+              }
+            } else if (isDriving) {
+              // Arms poised outward for aerodynamic Segway balance
+              leftArmRef.current.rotation.z = -0.32;
+              leftArmRef.current.rotation.x = -0.15 + Math.sin(time * 6) * 0.04;
+              if (bobiLeftElbowRef.current) {
+                bobiLeftElbowRef.current.rotation.z = -0.18;
+              }
+            } else {
+              // Idle natural posture: lifted outward to the left (~22°) away from torso
+              leftArmRef.current.rotation.z = -0.38 + Math.sin(time * 2.5) * 0.04;
+              leftArmRef.current.rotation.x = Math.sin(time * 2) * 0.03;
+              if (bobiLeftElbowRef.current) {
+                bobiLeftElbowRef.current.rotation.z = -0.16;
+              }
+            }
+          }
+
+          // Right Magnetic Claw Arm motion (Lifted outward away from body)
+          if (rightArmRef.current) {
+            if (isDancing) {
+              // Cheerful celebration lift outward to the right
+              rightArmRef.current.rotation.z = 1.25 + Math.sin(time * 5) * 0.2;
+              rightArmRef.current.rotation.x = 0.2;
+              if (bobiRightElbowRef.current) {
+                bobiRightElbowRef.current.rotation.z = 0.45 + Math.sin(time * 10) * 0.4;
+              }
+            } else if (isDriving) {
+              // Symmetrical poise outward to the right
+              rightArmRef.current.rotation.z = 0.32;
+              rightArmRef.current.rotation.x = -0.15 + Math.sin(time * 6) * 0.04;
+              if (bobiRightElbowRef.current) {
+                bobiRightElbowRef.current.rotation.z = 0.18;
+              }
+            } else {
+              // Idle natural posture: lifted outward to the right (~22°) away from torso
+              rightArmRef.current.rotation.z = 0.38 - Math.sin(time * 2.5) * 0.04;
+              rightArmRef.current.rotation.x = Math.sin(time * 2) * 0.03;
+              if (bobiRightElbowRef.current) {
+                bobiRightElbowRef.current.rotation.z = 0.16;
+              }
+            }
+          }
+
+          // Wheels Rotation when driving
+          if (isDriving) {
             wheelsRef.current.forEach(w => {
-              w.rotation.x += 0.2;
+              w.rotation.x += 0.22;
             });
+          }
+
+          // Chest Battery Energy Core (Biological rhythm pulse)
+          if (bobiChestCoreRef.current) {
+            const beat = (time * 3) % 1.0;
+            const isPulse = beat < 0.2 || (beat > 0.3 && beat < 0.45);
+            const intensity = isSpeaking ? 2.8 : isPulse ? 2.0 : 0.8;
+            (bobiChestCoreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = intensity;
+          }
+
+          // Speaker Mouth Voice Illumination (pulses with voice waves)
+          if (bobiMouthRef.current) {
+            if (isSpeaking) {
+              const voiceFlicker = Math.sin(time * 25) > 0 ? 2.5 : 0.4;
+              (bobiMouthRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = voiceFlicker;
+            } else {
+              (bobiMouthRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6;
+            }
+          }
+
+          // Antenna Communication Status Bulbs
+          bobiAntennaBulbsRef.current.forEach((bulb, idx) => {
+            const pulse = isSpeaking || isDriving ? Math.sin(time * 15 + idx * Math.PI) > 0.3 : Math.sin(time * 3 + idx) > 0.5;
+            (bulb.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse ? 2.2 : 0.5;
+          });
+
+          // Blinking OLED Digital Eyes
+          if (bobiEyesRef.current.length > 0) {
+            const blink = (time * 0.8) % 3.2 < 0.14;
+            bobiEyesRef.current.forEach(eye => {
+              (eye.material as THREE.MeshStandardMaterial).emissiveIntensity = blink ? 0.2 : 1.4;
+            });
+          }
+
+          // Magnet Claw Force Field Spark Pulsing
+          if (bobiMagnetGlowRef.current) {
+            const magPulse = 1.0 + Math.sin(time * 8) * 0.45;
+            (bobiMagnetGlowRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.2 * magPulse;
+            bobiMagnetGlowRef.current.scale.setScalar(0.9 + magPulse * 0.2);
           }
         }
       }
@@ -1518,7 +1875,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
   }, [robotType, isDancing, actionTrigger]);
 
   return (
-    <div className={`relative w-full h-full min-h-[380px] flex items-center justify-center select-none ${className}`}>
+    <div className={`relative w-full h-full min-h-[460px] flex items-center justify-center select-none ${className}`}>
       {robotType === 'arm' && (
         <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/85 text-amber-300 font-mono text-[11px] font-bold border border-amber-500/40 backdrop-blur-sm pointer-events-none shadow-md z-10">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -1551,15 +1908,14 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       )}
 
       {/* Quick Camera Angle Buttons: Front vs Top View */}
-      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+      {/* <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
         <button
           type="button"
           onClick={() => setFrontViewRef.current?.()}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 ${
-            viewAngle === 'front'
+          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 ${viewAngle === 'front'
               ? 'bg-blue-600 text-white shadow-blue-300 ring-2 ring-blue-300'
               : 'bg-white/90 text-slate-700 hover:bg-white backdrop-blur-sm border border-slate-200'
-          }`}
+            }`}
           title="Tampak Depan"
         >
           <span>🔄 Depan</span>
@@ -1567,16 +1923,15 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
         <button
           type="button"
           onClick={() => setTopViewRef.current?.()}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 ${
-            viewAngle === 'top'
+          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 ${viewAngle === 'top'
               ? 'bg-blue-600 text-white shadow-blue-300 ring-2 ring-blue-300'
               : 'bg-white/90 text-slate-700 hover:bg-white backdrop-blur-sm border border-slate-200'
-          }`}
+            }`}
           title="Tampak Atas (Bird's Eye View)"
         >
           <span>👁️ Dari Atas</span>
         </button>
-      </div>
+      </div> */}
 
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
       <div className="absolute bottom-2 text-xs font-semibold px-3.5 py-1 rounded-full bg-slate-800/75 text-white pointer-events-none backdrop-blur-sm flex items-center gap-1.5">

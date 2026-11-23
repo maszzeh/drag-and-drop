@@ -176,9 +176,9 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
           </div>
 
           {/* STAGE: Either 3D Live View OR 2D Anatomical Robot Parts Assembly */}
-          <div className="relative flex-1 flex items-center justify-center my-4 min-h-[440px]">
+          <div className="relative flex-1 flex items-center justify-center my-4 min-h-[520px]">
             {view3D ? (
-              <div className="w-full h-[440px] flex flex-col items-center justify-center relative">
+              <div className="w-full h-[520px] flex flex-col items-center justify-center relative">
                 <ThreeRobotViewer
                   className="w-full h-full"
                   robotType={

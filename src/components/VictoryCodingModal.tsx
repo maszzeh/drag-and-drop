@@ -130,7 +130,7 @@ export const VictoryCodingModal: React.FC<VictoryCodingModalProps> = ({
             </div>
 
             {/* Live 3D Robot Model */}
-            <div className="w-full h-[380px] flex items-center justify-center">
+            <div className="w-full h-[460px] flex items-center justify-center">
               <ThreeRobotViewer
                 className="w-full h-full"
                 robotType={robotTypeKey}
