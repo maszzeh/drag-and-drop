@@ -239,12 +239,6 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                       ) : (
                         <div className="w-full h-full relative flex items-center justify-center">
                           <RobotPartVisual partId={part.id} mode="silhouette" />
-                          {/* Center hint pill */}
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-1 text-center">
-                            <span className="text-[10px] font-black text-sky-700 bg-white/90 px-2 py-0.5 rounded-full shadow-xs border border-sky-200">
-                              Pasang {part.name}
-                            </span>
-                          </div>
                         </div>
                       )}
                     </div>
