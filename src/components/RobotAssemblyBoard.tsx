@@ -180,6 +180,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
             {view3D ? (
               <div className="w-full h-[440px] flex flex-col items-center justify-center relative">
                 <ThreeRobotViewer
+                  className="w-full h-full"
                   robotType={
                     level.slug === 'robo-bobi'
                       ? 'biped'

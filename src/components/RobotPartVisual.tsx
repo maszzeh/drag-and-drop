@@ -389,35 +389,99 @@ export const RobotPartVisual: React.FC<RobotPartVisualProps> = ({
     );
   }
 
-  // --- 3. ROBO-ARM PARTS ---
+  // --- 3. ROBO-ARM PARTS (RoboWebGL Industrial Style) ---
   if (partId === 'arm-base') {
     return (
-      <svg viewBox="0 0 200 110" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
+      <svg viewBox="0 0 200 120" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
         {isSilhouette ? (
-          <ellipse cx="100" cy="55" rx="80" ry="35" stroke="#7C3AED" strokeWidth="3" strokeDasharray="6 6" fill="rgba(124, 58, 237, 0.08)" />
+          <g stroke="#D97706" strokeWidth="3" strokeDasharray="6 6" fill="rgba(217, 119, 6, 0.08)">
+            <ellipse cx="100" cy="85" rx="85" ry="25" />
+            <rect x="70" y="30" width="60" height="55" rx="14" />
+            <circle cx="100" cy="35" r="22" />
+          </g>
         ) : (
           <g>
-            <ellipse cx="100" cy="70" rx="85" ry="32" fill="#1E293B" stroke="#0F172A" strokeWidth="3" />
-            <ellipse cx="100" cy="50" rx="75" ry="28" fill="#475569" stroke="#334155" strokeWidth="3" />
-            <ellipse cx="100" cy="35" rx="50" ry="20" fill="#7C3AED" stroke="#5B21B6" strokeWidth="3" />
-            <circle cx="100" cy="35" r="12" fill="#FACC15" />
+            {/* Flange Base Plate */}
+            <ellipse cx="100" cy="90" rx="90" ry="24" fill="#1E293B" stroke="#0F172A" strokeWidth="3" />
+            <ellipse cx="100" cy="84" rx="82" ry="20" fill="#3D4F61" stroke="#1E293B" strokeWidth="2.5" />
+
+            {/* 8 Flange Mounting Bolts */}
+            {[26, 44, 70, 100, 130, 156, 174].map((bx, i) => (
+              <circle key={i} cx={bx} cy={82 + Math.sin(i) * 5} r="4.5" fill="#E2E8F0" stroke="#0F172A" strokeWidth="1.5" />
+            ))}
+
+            {/* J1 Waist Rotating Turret */}
+            <rect x="68" y="38" width="64" height="46" rx="14" fill="#3D4F61" stroke="#1E293B" strokeWidth="3" />
+            <rect x="76" y="55" width="48" height="8" rx="4" fill="#1E293B" />
+
+            {/* J2 Shoulder Horizontal Joint Barrel */}
+            <rect x="52" y="16" width="96" height="36" rx="18" fill="#334155" stroke="#1E293B" strokeWidth="3" />
+            <circle cx="100" cy="34" r="14" fill="#E2E8F0" stroke="#1E293B" strokeWidth="2" />
+            <circle cx="100" cy="34" r="6" fill="#F59E0B" />
           </g>
         )}
       </svg>
     );
   }
 
-  if (partId === 'arm-lower' || partId === 'arm-upper') {
+  if (partId === 'arm-lower') {
     return (
-      <svg viewBox="0 0 140 160" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
+      <svg viewBox="0 0 140 180" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
         {isSilhouette ? (
-          <rect x="45" y="20" width="50" height="120" rx="20" stroke="#7C3AED" strokeWidth="3" strokeDasharray="6 6" fill="rgba(124, 58, 237, 0.08)" />
+          <g stroke="#D97706" strokeWidth="3" strokeDasharray="6 6" fill="rgba(217, 119, 6, 0.08)">
+            <circle cx="70" cy="30" r="22" />
+            <rect x="48" y="35" width="44" height="110" rx="20" />
+            <circle cx="70" cy="150" r="22" />
+          </g>
         ) : (
           <g>
-            <rect x="42" y="20" width="56" height="120" rx="22" fill="#8B5CF6" stroke="#6D28D9" strokeWidth="4" />
-            <circle cx="70" cy="38" r="14" fill="#334155" stroke="#1E293B" strokeWidth="3" />
-            <circle cx="70" cy="122" r="14" fill="#334155" stroke="#1E293B" strokeWidth="3" />
-            <rect x="58" y="58" width="24" height="44" rx="8" fill="#DDD6FE" />
+            {/* Lower Shoulder Connection Joint */}
+            <circle cx="70" cy="150" r="22" fill="#3D4F61" stroke="#1E293B" strokeWidth="3" />
+            <circle cx="70" cy="150" r="10" fill="#E2E8F0" />
+
+            {/* Main Boom Arm (Industrial Golden Yellow) */}
+            <rect x="48" y="36" width="44" height="110" rx="22" fill="#DDA032" stroke="#B45309" strokeWidth="4" />
+            <line x1="58" y1="45" x2="58" y2="135" stroke="#FEF08A" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+
+            {/* Industrial Warning Stripe Badge */}
+            <rect x="54" y="75" width="32" height="32" rx="6" fill="#1E293B" />
+            <text x="70" y="96" textAnchor="middle" fill="#FACC15" fontSize="13" fontWeight="bold">J2</text>
+
+            {/* Top Elbow Joint Barrel */}
+            <circle cx="70" cy="30" r="24" fill="#3D4F61" stroke="#1E293B" strokeWidth="3" />
+            <circle cx="70" cy="30" r="12" fill="#E2E8F0" stroke="#334155" strokeWidth="2" />
+            <circle cx="70" cy="30" r="5" fill="#DDA032" />
+          </g>
+        )}
+      </svg>
+    );
+  }
+
+  if (partId === 'arm-upper') {
+    return (
+      <svg viewBox="0 0 160 160" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
+        {isSilhouette ? (
+          <g stroke="#D97706" strokeWidth="3" strokeDasharray="6 6" fill="rgba(217, 119, 6, 0.08)">
+            <circle cx="35" cy="125" r="22" />
+            <g transform="rotate(45 35 125)">
+              <rect x="17" y="25" width="36" height="100" rx="18" />
+              <rect x="13" y="10" width="44" height="16" rx="6" />
+            </g>
+          </g>
+        ) : (
+          <g>
+            {/* Elbow Hinge Pivot */}
+            <circle cx="35" cy="125" r="22" fill="#3D4F61" stroke="#1E293B" strokeWidth="3" />
+            <circle cx="35" cy="125" r="10" fill="#E2E8F0" />
+
+            {/* Forearm Segment (Industrial Golden Yellow) - Articulated Rightward */}
+            <g transform="rotate(45 35 125)">
+              <rect x="17" y="25" width="36" height="100" rx="18" fill="#DDA032" stroke="#B45309" strokeWidth="3.5" />
+              <line x1="25" y1="35" x2="25" y2="110" stroke="#FEF08A" strokeWidth="2.5" opacity="0.6" strokeLinecap="round" />
+              {/* Wrist Joint Collar */}
+              <rect x="13" y="12" width="44" height="16" rx="6" fill="#3D4F61" stroke="#1E293B" strokeWidth="2" />
+              <rect x="15" y="4" width="40" height="10" rx="4" fill="#E2E8F0" stroke="#334155" strokeWidth="1.5" />
+            </g>
           </g>
         )}
       </svg>
@@ -426,15 +490,44 @@ export const RobotPartVisual: React.FC<RobotPartVisualProps> = ({
 
   if (partId === 'arm-gripper') {
     return (
-      <svg viewBox="0 0 130 130" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
+      <svg viewBox="0 0 150 150" className={`w-full h-full filter drop-shadow-md ${className}`} fill="none">
         {isSilhouette ? (
-          <path d="M 25 30 C 25 90 105 90 105 30" stroke="#F59E0B" strokeWidth="3" strokeDasharray="6 6" fill="rgba(245, 158, 11, 0.08)" />
+          <g stroke="#EF4444" strokeWidth="3" strokeDasharray="6 6" fill="rgba(239, 68, 68, 0.08)">
+            <rect x="55" y="15" width="40" height="35" rx="10" />
+            <circle cx="75" cy="85" r="30" />
+            <line x1="75" y1="55" x2="75" y2="115" strokeWidth="3" />
+            <line x1="45" y1="85" x2="105" y2="85" strokeWidth="3" />
+          </g>
         ) : (
           <g>
-            <rect x="45" y="10" width="40" height="30" rx="8" fill="#334155" stroke="#1E293B" strokeWidth="3" />
-            <path d="M 28 35 C 28 85 55 95 65 95 C 75 95 102 85 102 35" stroke="#D97706" strokeWidth="12" strokeLinecap="round" />
-            <rect x="20" y="30" width="16" height="35" rx="6" fill="#FACC15" stroke="#B45309" strokeWidth="2.5" />
-            <rect x="94" y="30" width="16" height="35" rx="6" fill="#FACC15" stroke="#B45309" strokeWidth="2.5" />
+            {/* End-Effector Tool Flange */}
+            <rect x="52" y="10" width="46" height="28" rx="8" fill="#3D4F61" stroke="#1E293B" strokeWidth="2.5" />
+            <rect x="58" y="28" width="34" height="14" rx="4" fill="#DDA032" stroke="#B45309" strokeWidth="2" />
+
+            {/* Gripper Tool Prongs */}
+            <rect x="46" y="38" width="10" height="28" rx="4" fill="#334155" stroke="#1E293B" strokeWidth="1.5" />
+            <rect x="94" y="38" width="10" height="28" rx="4" fill="#334155" stroke="#1E293B" strokeWidth="1.5" />
+
+            {/* Glowing Translucent Target Sphere (RoboWebGL) */}
+            <circle cx="75" cy="88" r="32" fill="#F43F5E" opacity="0.3" className="animate-ping" />
+            <circle cx="75" cy="88" r="28" fill="#FB7185" stroke="#F43F5E" strokeWidth="3" />
+            <circle cx="83" cy="80" r="8" fill="#FFFFFF" opacity="0.6" />
+
+            {/* 3D Coordinate Transform Gizmo (RGB Arrows from RoboWebGL) */}
+            {/* X-axis: Red */}
+            <line x1="75" y1="88" x2="118" y2="88" stroke="#EF4444" strokeWidth="3.5" strokeLinecap="round" />
+            <polygon points="124,88 116,84 116,92" fill="#EF4444" />
+
+            {/* Y-axis: Green */}
+            <line x1="75" y1="88" x2="75" y2="46" stroke="#22C55E" strokeWidth="3.5" strokeLinecap="round" />
+            <polygon points="75,40 71,48 79,48" fill="#22C55E" />
+
+            {/* Z-axis: Blue */}
+            <line x1="75" y1="88" x2="50" y2="108" stroke="#3B82F6" strokeWidth="3.5" strokeLinecap="round" />
+            <polygon points="45,112 49,103 56,108" fill="#3B82F6" />
+
+            {/* Target Gimbal Ring */}
+            <ellipse cx="75" cy="88" rx="36" ry="14" fill="none" stroke="#F43F5E" strokeWidth="2" strokeDasharray="4 4" />
           </g>
         )}
       </svg>
