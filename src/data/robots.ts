@@ -292,7 +292,7 @@ export const ROBOT_LEVELS: RobotLevel[] = [
         color: 'bg-rose-500',
         targetId: 'slot-arm-gripper',
         isInstalled: false,
-        hintPosition: { top: '8%', left: '68%', width: '24%', height: '24%' },
+        hintPosition: { top: '20%', left: '56%', width: '24%', height: '24%' },
       },
     ],
     codingBlocks: [
