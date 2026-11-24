@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { CheckCircle2, Sparkles, Volume2, Box, Eye, Check } from 'lucide-react';
 import { RobotLevel, RobotPart } from '../types/robot';
 import { sounds } from '../utils/audio';
@@ -12,7 +13,6 @@ interface RobotAssemblyBoardProps {
   parts: RobotPart[];
   onPartInstalled: (partId: string) => void;
   onAllCompleted: () => void;
-  onOpenAnatomyLab?: () => void;
 }
 
 export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
@@ -20,7 +20,6 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
   parts,
   onPartInstalled,
   onAllCompleted,
-  onOpenAnatomyLab,
 }) => {
   const [draggedPartId, setDraggedPartId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
@@ -346,17 +345,13 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
             <p className="text-[11px] text-emerald-900 leading-relaxed mt-1">
               <strong>Baterai & Rangka:</strong> Baterai sebagai makanan tenaga robot dan rangka pelindung dari benturan.
             </p>
-            {onOpenAnatomyLab && (
-              <button
-                onClick={() => {
-                  sounds.playPop();
-                  onOpenAnatomyLab();
-                }}
-                className="mt-3 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-xs shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 transition active:scale-95 flex items-center justify-center gap-2"
-              >
-                <span>🔬 Buka Lab 3D: Cara Kerja Sensor, Otak & Baterai!</span>
-              </button>
-            )}
+            <Link
+              href="/cara-kerja-robot"
+              onClick={() => sounds.playPop()}
+              className="mt-3 w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-xs shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 transition active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>🔬 Buka Halaman 3D: Cara Kerja Sensor, Otak & Baterai!</span>
+            </Link>
           </div>
         </div>
       </div>

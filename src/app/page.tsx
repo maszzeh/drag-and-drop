@@ -8,7 +8,6 @@ import { RobotAssemblyBoard } from '../components/RobotAssemblyBoard';
 import { VictoryCodingModal } from '../components/VictoryCodingModal';
 import { LevelSelectModal } from '../components/LevelSelectModal';
 import { EduGuideModal } from '../components/EduGuideModal';
-import { RobotAnatomyLabModal } from '../components/RobotAnatomyLabModal';
 
 export default function HomePage() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState<number>(0);
@@ -23,7 +22,6 @@ export default function HomePage() {
   const [isVictoryOpen, setIsVictoryOpen] = useState<boolean>(false);
   const [isLevelSelectOpen, setIsLevelSelectOpen] = useState<boolean>(false);
   const [isEduGuideOpen, setIsEduGuideOpen] = useState<boolean>(false);
-  const [isAnatomyLabOpen, setIsAnatomyLabOpen] = useState<boolean>(false);
 
   // Switch level
   const handleSelectLevel = (selectedLevel: RobotLevel) => {
@@ -74,7 +72,6 @@ export default function HomePage() {
         starsCount={starsCount}
         onOpenLevelSelect={() => setIsLevelSelectOpen(true)}
         onOpenEduGuide={() => setIsEduGuideOpen(true)}
-        onOpenAnatomyLab={() => setIsAnatomyLabOpen(true)}
         onResetLevel={handleResetLevel}
         audioGuideText={currentLevel.audioGuide}
       />
@@ -86,7 +83,6 @@ export default function HomePage() {
           parts={partsState}
           onPartInstalled={handlePartInstalled}
           onAllCompleted={handleAllCompleted}
-          onOpenAnatomyLab={() => setIsAnatomyLabOpen(true)}
         />
       </div>
 
@@ -102,7 +98,6 @@ export default function HomePage() {
         onReplay={handleResetLevel}
         onNextLevel={handleNextLevel}
         hasNextLevel={hasNextLevel}
-        onOpenAnatomyLab={() => setIsAnatomyLabOpen(true)}
       />
 
       {/* Level Selection Modal */}
@@ -118,27 +113,6 @@ export default function HomePage() {
       <EduGuideModal
         isOpen={isEduGuideOpen}
         onClose={() => setIsEduGuideOpen(false)}
-        onOpenAnatomyLab={() => {
-          setIsEduGuideOpen(false);
-          setIsAnatomyLabOpen(true);
-        }}
-      />
-
-      {/* Special Feature: 3D Robot Anatomy & How It Works Lab Modal */}
-      <RobotAnatomyLabModal
-        isOpen={isAnatomyLabOpen}
-        onClose={() => setIsAnatomyLabOpen(false)}
-        initialRobotType={
-          currentLevel.slug === 'robo-bobi'
-            ? 'biped'
-            : currentLevel.slug === 'robo-rover'
-            ? 'rover'
-            : currentLevel.slug === 'robo-arm'
-            ? 'arm'
-            : currentLevel.slug === 'robo-aero'
-            ? 'drone'
-            : 'pet'
-        }
       />
     </main>
   );

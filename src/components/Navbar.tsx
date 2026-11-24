@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Volume2, VolumeX, Sparkles, BookOpen, RotateCcw, LayoutGrid } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
@@ -9,7 +10,6 @@ interface NavbarProps {
   starsCount: number;
   onOpenLevelSelect: () => void;
   onOpenEduGuide: () => void;
-  onOpenAnatomyLab: () => void;
   onResetLevel: () => void;
   audioGuideText: string;
 }
@@ -19,7 +19,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   starsCount,
   onOpenLevelSelect,
   onOpenEduGuide,
-  onOpenAnatomyLab,
   onResetLevel,
   audioGuideText,
 }) => {
@@ -70,21 +69,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Ganti</span>
           </button>
 
-          {/* 3D Robot Anatomy & How It Works Lab Button */}
-          <button
-            onClick={() => {
-              sounds.playPop();
-              onOpenAnatomyLab();
-            }}
+          {/* 3D Robot Anatomy & How It Works Lab Page Link */}
+          <Link
+            href="/cara-kerja-robot"
+            onClick={() => sounds.playPop()}
             className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-xs hover:from-purple-700 hover:to-indigo-700 transition shadow-sm active:scale-95 animate-pulseGlow"
-            title="Buka Laboratorium Cara Kerja Sensor, Otak & Baterai Robot"
+            title="Buka Halaman Khusus Cara Kerja Sensor, Otak & Baterai Robot"
           >
             <span className="text-sm">🔬</span>
             <span className="hidden sm:inline">Cara Kerja Robot</span>
             <span className="text-[10px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded-full">
               3D
             </span>
-          </button>
+          </Link>
 
           {/* Interactive Voice Narration Pill */}
           <button

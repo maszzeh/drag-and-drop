@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import confetti from 'canvas-confetti';
 import { Star, Play, RotateCcw, ArrowRight, Sparkles, Check, Volume2 } from 'lucide-react';
 import { RobotLevel } from '../types/robot';
@@ -13,7 +14,6 @@ interface VictoryCodingModalProps {
   onReplay: () => void;
   onNextLevel: () => void;
   hasNextLevel: boolean;
-  onOpenAnatomyLab?: () => void;
 }
 
 export const VictoryCodingModal: React.FC<VictoryCodingModalProps> = ({
@@ -22,7 +22,6 @@ export const VictoryCodingModal: React.FC<VictoryCodingModalProps> = ({
   onReplay,
   onNextLevel,
   hasNextLevel,
-  onOpenAnatomyLab,
 }) => {
   const [activeStepIndex, setActiveStepIndex] = useState<number>(-1);
   const [isRunningCode, setIsRunningCode] = useState<boolean>(false);
@@ -232,17 +231,13 @@ export const VictoryCodingModal: React.FC<VictoryCodingModalProps> = ({
             <span>Rakit Ulang Robot Ini</span>
           </button>
 
-          {onOpenAnatomyLab && (
-            <button
-              onClick={() => {
-                sounds.playPop();
-                onOpenAnatomyLab();
-              }}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-black text-xs hover:bg-indigo-100 transition active:scale-95 shadow-xs"
-            >
-              <span>🔬 Pelajari Cara Kerja Robot (3D)</span>
-            </button>
-          )}
+          <Link
+            href="/cara-kerja-robot"
+            onClick={() => sounds.playPop()}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-black text-xs hover:bg-indigo-100 transition active:scale-95 shadow-xs"
+          >
+            <span>🔬 Pelajari Cara Kerja Robot (3D)</span>
+          </Link>
 
           {hasNextLevel ? (
             <button
