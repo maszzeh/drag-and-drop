@@ -1,653 +1,991 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import {
-  ArrowLeft,
-  Volume2,
-  VolumeX,
-  Play,
-  Sparkles,
-  HelpCircle,
-} from 'lucide-react';
-import { ThreeRobotViewer } from '../../components/ThreeRobotViewer';
-import { RobotType } from '../../types/robot';
-import { sounds } from '../../utils/audio';
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
 
-type ConceptKey = 'brain' | 'sensor' | 'motor' | 'battery' | 'casing';
+const ThreeRobotViewer = dynamic(
+  () => import("@/components/ThreeRobotViewer").then((mod) => mod.ThreeRobotViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-cyan-400 gap-3">
+        <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-semibold">Memuat Arena 3D Robo-Bobi...</span>
+      </div>
+    ),
+  }
+);
 
-interface ConceptData {
-  id: ConceptKey;
+// Audio synthesizer using Web Audio API for arcade-like kids feedback
+class KidAudioEffects {
+  private ctx: AudioContext | null = null;
+
+  private getContext() {
+    if (typeof window === "undefined") return null;
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+    return this.ctx;
+  }
+
+  // Radio signal beam transmit
+  playSignal() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  }
+
+  // Robot beep boop thinking
+  playThink() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    [600, 900, 750, 1100].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (idx + 1) * 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.08);
+      osc.stop(ctx.currentTime + (idx + 1) * 0.08);
+    });
+  }
+
+  // Motor drive hum
+  playMotor() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  }
+
+  // Obstacle warning alert
+  playObstacleAlert() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    [880, 440, 880].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (idx + 1) * 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.12);
+      osc.stop(ctx.currentTime + (idx + 1) * 0.12);
+    });
+  }
+
+  // Battery charge cheer
+  playBatteryCharge() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    [400, 520, 660, 880].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.09);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (idx + 1) * 0.09);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.09);
+      osc.stop(ctx.currentTime + (idx + 1) * 0.09);
+    });
+  }
+
+  // Low battery sad whine
+  playBatteryLow() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(450, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  }
+
+  // Shield / Casing protection ping
+  playShield() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  }
+}
+
+const sfx = new KidAudioEffects();
+
+// 5 Main Core Concept Cards
+interface ConceptItem {
+  id: string;
   humanAnalogy: string;
   humanIcon: string;
   robotComponent: string;
   robotIcon: string;
-  title: string;
-  tagline: string;
   badgeColor: string;
-  borderColor: string;
-  bgGradient: string;
-  humanExplanation: string;
-  robotExplanation: string;
-  voiceText: string;
-  dialogueText: string;
-  experiments: {
-    label: string;
-    actionTrigger: string;
-    soundType: 'pop' | 'snap' | 'success' | 'beep' | 'motor';
-    voiceResponse: string;
-    description: string;
-  }[];
-  pedagogicalQuestion: string;
+  badgeBorder: string;
+  description: string;
+  playgroundMode: string;
+  signalActionLabel: string;
+  funFact: string;
 }
 
-const CONCEPTS: ConceptData[] = [
+const CONCEPTS: ConceptItem[] = [
   {
-    id: 'brain',
-    humanAnalogy: 'Otak di Kepala',
-    humanIcon: '🧠',
-    robotComponent: 'Komputer Kecil / Kontroler (Mikrokontroler)',
-    robotIcon: '💻',
-    title: 'Otak Robot (Pusat Berpikir & Memori)',
-    tagline: 'Tempat robot berpikir dan mengingat perintah coding.',
-    badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
-    borderColor: 'border-purple-400',
-    bgGradient: 'from-purple-500/10 via-indigo-50/40 to-white',
-    humanExplanation:
-      'Otak di dalam kepala kita berfungsi untuk berpikir, mengingat nama teman, dan menyuruh tubuh kita bergerak saat bermain.',
-    robotExplanation:
-      'Robot punya komputer kecil (mikrokontroler)! Chip ini membaca kode perintah dari anak-anak, lalu memberi tahu motor kapan harus maju, berbelok, atau berhenti.',
-    voiceText:
-      'Otak robot adalah komputer kecil. Di sinilah robot berpikir dan mengingat semua perintah dari kamu!',
-    dialogueText:
-      'Bip bop! Otak komputermu menerima instruksi kode! Aku siap berpikir dan memimpin seluruh gerakanku!',
-    experiments: [
-      {
-        label: '🧠 Kirim Perintah Berpikir',
-        actionTrigger: 'edu_brain',
-        soundType: 'beep',
-        voiceResponse:
-          'Bip bip! Otak komputer menerima sinyal berpikir! Lampu data di kepala menyala!',
-        description: 'Lihat cincin data digital dan lampu antena di kepala robot berkedip aktif!',
-      },
-      {
-        label: '🧩 Logika: "Jika Ada Rintangan ➔ Belok!"',
-        actionTrigger: 'edu_brain',
-        soundType: 'pop',
-        voiceResponse:
-          'Logika cerdas berjalan! Jika sensor melihat tembok, otak memerintahkan motor berbelok!',
-        description: 'Robot memproses logika sebab-akibat (kondisional IF-THEN) seperti komputer cerdas.',
-      },
-    ],
-    pedagogicalQuestion:
-      'Tanya anak: "Kalau kita mau melompat, siapa yang menyuruh kaki kita bergerak? Ya, otak kita! Robot juga punya otak kecil di kepalanya."',
+    id: "brain",
+    humanAnalogy: "Otak Kita",
+    humanIcon: "🧠",
+    robotComponent: "Komputer Kecil / Kontroler (Microcontroller)",
+    robotIcon: "💻",
+    badgeColor: "bg-purple-900/60 text-purple-300 border-purple-500/40",
+    badgeBorder: "border-purple-500/50 hover:border-purple-400",
+    description: "Tempat Robo-Bobi berpikir, mengingat kode perintahmu, dan mengatur kapan harus bergerak atau berhenti!",
+    playgroundMode: "edu_brain_signal",
+    signalActionLabel: "📡 Kirim Sinyal Pikir",
+    funFact: "Otak Bobi bisa memproses 16 juta instruksi dalam 1 detik!",
   },
   {
-    id: 'sensor',
-    humanAnalogy: 'Mata, Telinga, & Kulit (Panca Indera)',
-    humanIcon: '👀👂🖐️',
-    robotComponent: 'Sensor Penglihatan, Suara, & Sentuh',
-    robotIcon: '📡',
-    title: 'Sensor Robot (Panca Indera Canggih)',
-    tagline: 'Alat untuk melihat jalan, mendengar tepuk tangan, atau merasakan benda di depannya.',
-    badgeColor: 'bg-sky-100 text-sky-800 border-sky-300',
-    borderColor: 'border-sky-400',
-    bgGradient: 'from-sky-500/10 via-cyan-50/40 to-white',
-    humanExplanation:
-      'Kita punya mata untuk melihat warna pelangi, telinga untuk mendengar suara mama, dan kulit untuk merasakan sentuhan hangat.',
-    robotExplanation:
-      'Robot tidak punya mata biologis, tapi punya Sensor Kamera, Radar Ultrasonik, dan Sensor Sentuh. Robot jadi bisa tahu jika ada meja di depan agar tidak menabrak!',
-    voiceText:
-      'Sensor adalah mata dan telinga robot. Dengan sensor, robot bisa melihat jalan dan mendengar tepuk tanganmu!',
-    dialogueText:
-      'Mata sensor dan telingaku aktif! Aku bisa melihat sekeliling dan mendeteksi kamu teman baikku!',
-    experiments: [
-      {
-        label: '👀 Nyalakan Radar Sensor Mata',
-        actionTrigger: 'edu_sensor_eye',
-        soundType: 'pop',
-        voiceResponse:
-          'Wuuusshh! Sinar radar kamera aktif memancar ke depan untuk mendeteksi rintangan!',
-        description: 'Muncul pancaran sinar radar sensor 3D berwarna cyan dari mata robot!',
-      },
-      {
-        label: '👏 Tepuk Tangan (Sensor Suara)',
-        actionTrigger: 'edu_sensor_sound',
-        soundType: 'beep',
-        voiceResponse:
-          'Prok prok! Sensor suara mendengar tepukan tanganmu! Antena robot bergetar gembira!',
-        description: 'Antena robot bergetar menyerap frekuensi suara tepuk tangan anak.',
-      },
-      {
-        label: '🖐️ Sentuh Bumper (Sensor Raba)',
-        actionTrigger: 'edu_sensor_touch',
-        soundType: 'snap',
-        voiceResponse:
-          'Tit tit! Sensor sentuh bumper merasakan sentuhan tanganmu di bodi robot!',
-        description: 'Sensor mikro-saklar (bumper) mendeteksi kontak fisik lembut.',
-      },
-    ],
-    pedagogicalQuestion:
-      'Ajak anak menutup mata: "Bisakah kita jalan tanpa mata? Susah kan? Robot juga butuh sensor kamera agar tidak menabrak pintu!"',
+    id: "sensor",
+    humanAnalogy: "Mata, Telinga & Kulit",
+    humanIcon: "👀 👂 ✋",
+    robotComponent: "Sensor Jarak & Sentuh (Sensors)",
+    robotIcon: "📡",
+    badgeColor: "bg-cyan-900/60 text-cyan-300 border-cyan-500/40",
+    badgeBorder: "border-cyan-500/50 hover:border-cyan-400",
+    description: "Alat ajaib untuk melihat jalan, mendeteksi dinding, mendengar suara tepuk tangan, atau merasakan tabrakan.",
+    playgroundMode: "edu_sensor_eye",
+    signalActionLabel: "👁️ Pindai Radar Depan",
+    funFact: "Sensor ultrasonik Bobi menembakkan gelombang suara yang memantul mirip kelelawar!",
   },
   {
-    id: 'motor',
-    humanAnalogy: 'Otot, Tangan, & Kaki',
-    humanIcon: '🦾🛹',
-    robotComponent: 'Motor Listrik, Roda, & Lengan Servo',
-    robotIcon: '⚙️',
-    title: 'Motor & Roda Robot (Penggerak Aksi)',
-    tagline: 'Alat untuk berjalan, berputar, meluncur, atau mengambil barang.',
-    badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
-    borderColor: 'border-amber-400',
-    bgGradient: 'from-amber-500/10 via-orange-50/40 to-white',
-    humanExplanation:
-      'Otot di kaki kita membuat kita bisa berlari kencang, dan tangan kita bisa memegang krayon untuk menggambar.',
-    robotExplanation:
-      'Robot menggunakan Motor Listrik dan Servo! Motor memutar roda karet untuk meluncur maju-mundur, serta menggerakkan capit magnet untuk mengambil balok mainan.',
-    voiceText:
-      'Motor dan roda adalah tangan dan kaki robot. Motor ini memutar roda dan menggerakkan capit robot!',
-    dialogueText:
-      'Vrooom! Motor penggerakku bertenaga! Aku siap meluncur kencang dan melambaikan tangan menyapamu!',
-    experiments: [
-      {
-        label: '🛹 Putar Motor Roda (Maju Cepat!)',
-        actionTrigger: 'edu_motor_drive',
-        soundType: 'motor',
-        voiceResponse:
-          'Vroooom! Motor listrik memutar roda kencang, robot meluncur dengan seimbang!',
-        description: 'Roda robot berputar secara 3D dan bodi robot bersiap meluncur.',
-      },
-      {
-        label: '👋 Lambaikan Tangan Robot (Motor Servo)',
-        actionTrigger: 'edu_motor_arm',
-        soundType: 'pop',
-        voiceResponse:
-          'Halo teman cilik! Motor servo bahu dan siku menggerakkan tangan melambai ramah!',
-        description: 'Sendi servo di siku dan bahu mengangkat tangan melambai ke anak.',
-      },
-      {
-        label: '🧲 Aktifkan Capit Magnet',
-        actionTrigger: 'edu_motor_arm',
-        soundType: 'beep',
-        voiceResponse:
-          'Zzzzzzt! Capit magnetik menyala menghasilkan daya tarik untuk mengangkat balok!',
-        description: 'Ujung capit magnetik memancarkan kilau gaya tarik magnet 3D.',
-      },
-    ],
-    pedagogicalQuestion:
-      'Ajak anak menggerakkan siku: "Coba tekuk tanganmu! Di siku robot ada motor bulat kecil bernama servo yang bekerja persis seperti sikumu!"',
+    id: "motor",
+    humanAnalogy: "Tangan & Kaki",
+    humanIcon: "🦾 🦵",
+    robotComponent: "Motor Listrik & Roda (Actuators)",
+    robotIcon: "⚙️",
+    badgeColor: "bg-emerald-900/60 text-emerald-300 border-emerald-500/40",
+    badgeBorder: "border-emerald-500/50 hover:border-emerald-400",
+    description: "Otot robot! Mengubah listrik menjadi gerakan berputar agar Bobi bisa berjalan, berbelok lincah, atau melambaikan tangan.",
+    playgroundMode: "edu_motor_drive",
+    signalActionLabel: "🚀 Putar Roda Motor",
+    funFact: "Roda Segway Bobi selalu menjaga keseimbangannya agar tidak terjatuh!",
   },
   {
-    id: 'battery',
-    humanAnalogy: 'Nasi, Sayur, & Susu (Makanan Sehat)',
-    humanIcon: '🍚🥛',
-    robotComponent: 'Baterai Tenaga Listrik & Panel Surya',
-    robotIcon: '⚡',
-    title: 'Baterai Robot (Makanan & Sumber Energi)',
-    tagline: 'Makanan robot supaya kuat bergerak dan tidak lemas (mati).',
-    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    borderColor: 'border-emerald-400',
-    bgGradient: 'from-emerald-500/10 via-green-50/40 to-white',
-    humanExplanation:
-      'Kalau kita lupa sarapan nasi dan minum susu, badan kita jadi lemas, mengantuk, dan tidak kuat lari.',
-    robotExplanation:
-      'Robot tidak makan nasi, tapi robot "makan" energi listrik dari Baterai! Baterai dialirkan ke komputer dan motor. Kalau baterai habis, robot akan tertidur lemas.',
-    voiceText:
-      'Baterai adalah makanan untuk robot. Seperti kamu makan nasi dan susu, robot butuh baterai agar kuat bergerak!',
-    dialogueText:
-      'Nyam nyam! Bateraiku terisi penuh dengan energi listrik bersih! Aku bertenaga penuh dan tidak lemas!',
-    experiments: [
-      {
-        label: '⚡ Beri Makan Robot (Cas 100% Penuh)',
-        actionTrigger: 'edu_battery_full',
-        soundType: 'success',
-        voiceResponse:
-          'Nyam nyam nyam! Baterai 100 persen penuh! Robot berdiri gagah, kenyang, dan melompat gembira!',
-        description: 'Partikel energi listrik hijau mengalir ke dada robot, bodi robot melompat riang!',
-      },
-      {
-        label: '🥱 Baterai Habis (Lemas 0%)',
-        actionTrigger: 'edu_battery_low',
-        soundType: 'beep',
-        voiceResponse:
-          'Aduuuh... bateraiku habis nol persen... mataku redup dan badanku lemas butuh makanan listrik...',
-        description: 'Robot menunduk terkulai lemas, lampu mata meredup, dan denyut dada melemah.',
-      },
-      {
-        label: '☀️ Cas dengan Sinar Matahari (Surya)',
-        actionTrigger: 'edu_battery_full',
-        soundType: 'pop',
-        voiceResponse:
-          'Sinar matahari hangat diserap panel surya menjadi aliran listrik ramah lingkungan!',
-        description: 'Mencontohkan teknologi energi bersih ramah lingkungan bagi anak-anak.',
-      },
-    ],
-    pedagogicalQuestion:
-      'Beri pesan moral: "Supaya kamu sekuat robot bertenaga penuh, jangan lupa selalu habiskan sarapan nasi dan sayurmu ya!"',
+    id: "battery",
+    humanAnalogy: "Nasi & Susu (Makanan)",
+    humanIcon: "🍚 🥛",
+    robotComponent: "Baterai Li-Po (Power Supply)",
+    robotIcon: "🔋",
+    badgeColor: "bg-amber-900/60 text-amber-300 border-amber-500/40",
+    badgeBorder: "border-amber-500/50 hover:border-amber-400",
+    description: "Makanan & energi robot! Kalau baterai habis, Bobi akan lemas tertidur. Ayo isi dayanya agar bugar dan bersemangat!",
+    playgroundMode: "edu_battery_full",
+    signalActionLabel: "⚡ Beri Makanan (Cas Baterai)",
+    funFact: "Baterai Bobi menyimpan elektron-elektron kecil yang siap mengalir memberi tenaga!",
   },
   {
-    id: 'casing',
-    humanAnalogy: 'Tulang & Kulit Pelindung',
-    humanIcon: '🦴🛡️',
-    robotComponent: 'Rangka Baja & Casing Pelindung Bodi',
-    robotIcon: '🛡️',
-    title: 'Rangka & Casing Robot (Baju Pelindung)',
-    tagline: 'Pelindung bagian dalam robot agar tidak mudah rusak saat jatuh.',
-    badgeColor: 'bg-rose-100 text-rose-800 border-rose-300',
-    borderColor: 'border-rose-400',
-    bgGradient: 'from-rose-500/10 via-red-50/40 to-white',
-    humanExplanation:
-      'Di dalam kepala ada tengkorak keras pelindung otak. Kulit di luar melindungi daging kita dari kotoran dan debu.',
-    robotExplanation:
-      'Robot punya Rangka Baja dan Casing Plastik Tebal! Casing ini melindungi chip komputer dan baterai di dalam agar tidak pecah saat robot tersenggol atau jatuh.',
-    voiceText:
-      'Rangka dan casing adalah tulang dan baju pelindung robot. Gunanya agar bagian dalam robot tidak rusak saat terbentur!',
-    dialogueText:
-      'Kliing! Rangka bajaku sangat kuat dan kokoh! Bagian dalam komputer dan kabelku terlindungi aman!',
-    experiments: [
-      {
-        label: '🛡️ Nyalakan Perisai Rangka Pelindung',
-        actionTrigger: 'edu_casing',
-        soundType: 'snap',
-        voiceResponse:
-          'Klinggg! Kubah perisai rangka pelindung aktif berkilau mengamankan seluruh bodi robot!',
-        description: 'Kubah perisai hologram 3D menyala mengelilingi robot untuk memperlihatkan fungsi perlindungan.',
-      },
-      {
-        label: '🧱 Tes Ketahanan Benturan Casing',
-        actionTrigger: 'edu_casing',
-        soundType: 'pop',
-        voiceResponse:
-          'Tung tung! Rangka tebal menahan benturan meja! Komputer dan baterai di dalam tetap aman terlindungi!',
-        description: 'Menjelaskan fungsi struktural casing sebagai peredam getaran benturan mekanik.',
-      },
-    ],
-    pedagogicalQuestion:
-      'Tanya anak: "Kenapa kita pakai helm saat naik sepeda? Untuk melindungi kepala! Casing robot itu seperti helm kuat untuk komputernya."',
+    id: "casing",
+    humanAnalogy: "Tulang & Kulit",
+    humanIcon: "🦴 🛡️",
+    robotComponent: "Rangka & Casing (Chassis / Body)",
+    robotIcon: "🤖",
+    badgeColor: "bg-rose-900/60 text-rose-300 border-rose-500/40",
+    badgeBorder: "border-rose-500/50 hover:border-rose-400",
+    description: "Baju zirah pelindung! Menjaga komponen elektronik di dalam tubuh Bobi agar tetap aman dari benturan, debu, dan jatuh.",
+    playgroundMode: "edu_casing",
+    signalActionLabel: "🛡️ Aktifkan Perisai Rangka",
+    funFact: "Casing Bobi dibuat dari polimer ringan anti lecet yang kuat dan kokoh!",
   },
 ];
 
 export default function CaraKerjaRobotPage() {
-  const [activeConceptKey, setActiveConceptKey] = useState<ConceptKey>('brain');
-  const [selectedRobotType, setSelectedRobotType] = useState<RobotType>('biped');
-  const [current3DAction, setCurrent3DAction] = useState<string>('edu_brain');
-  const [activeDialogue, setActiveDialogue] = useState<string>(CONCEPTS[0].dialogueText);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+  // Always Robo-Bobi ("biped") for all tests
+  const robotType = "biped";
 
-  const activeConcept = CONCEPTS.find(c => c.id === activeConceptKey) || CONCEPTS[0];
+  // Active state
+  const [activeConcept, setActiveConcept] = useState<string>("brain");
+  const [eduAnimation, setEduAnimation] = useState<string>("edu_brain");
+  const [controllerSignalActive, setControllerSignalActive] = useState<boolean>(false);
+  const [signalBeamText, setSignalBeamText] = useState<string>("");
+  const [bobiStatusMessage, setBobiStatusMessage] = useState<string>(
+    "Hai teman kecil! Aku Robo-Bobi! Coba tekan tombol di Remote Kontrolmu!"
+  );
+  const [batteryLevel, setBatteryLevel] = useState<number>(100);
+  const [radarActive, setRadarActive] = useState<boolean>(false);
+  const [logicStep, setLogicStep] = useState<string>("standby");
+  const [obstacleDistance, setObstacleDistance] = useState<number>(150);
 
-  const handleSelectConcept = (conceptKey: ConceptKey) => {
-    const concept = CONCEPTS.find(c => c.id === conceptKey);
-    if (!concept) return;
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const distanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    setActiveConceptKey(conceptKey);
-    sounds.playPop();
+  // Trigger Signal Transmission from Controller to Bobi
+  const triggerControllerCommand = (
+    mode: string,
+    signalName: string,
+    bobiReply: string,
+    sfxType: "signal" | "think" | "motor" | "alert" | "battery" | "low" | "shield" = "signal",
+    durationMs: number = 3200
+  ) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-    const defaultTrigger =
-      conceptKey === 'brain'
-        ? 'edu_brain'
-        : conceptKey === 'sensor'
-        ? 'edu_sensor_eye'
-        : conceptKey === 'motor'
-        ? 'edu_motor_drive'
-        : conceptKey === 'battery'
-        ? 'edu_battery_full'
-        : 'edu_casing';
+    // Audio SFX
+    if (sfxType === "signal") sfx.playSignal();
+    else if (sfxType === "think") sfx.playThink();
+    else if (sfxType === "motor") sfx.playMotor();
+    else if (sfxType === "alert") sfx.playObstacleAlert();
+    else if (sfxType === "battery") sfx.playBatteryCharge();
+    else if (sfxType === "low") sfx.playBatteryLow();
+    else if (sfxType === "shield") sfx.playShield();
 
-    setCurrent3DAction(defaultTrigger);
-    setActiveDialogue(concept.dialogueText);
-    sounds.speak(concept.voiceText);
+    // Signal beam animation
+    setControllerSignalActive(true);
+    setSignalBeamText(`📡 ~ ~ ~ [${signalName}] ~ ~ ~ ⚡ ➔ 🧠`);
+    setEduAnimation(mode);
+    setBobiStatusMessage(bobiReply);
+
+    timerRef.current = setTimeout(() => {
+      setControllerSignalActive(false);
+      setSignalBeamText("");
+    }, 1800);
   };
 
-  const handleRunExperiment = (exp: ConceptData['experiments'][0]) => {
-    if (exp.soundType === 'beep') sounds.playRobotBeep();
-    else if (exp.soundType === 'motor') sounds.playMotorSound();
-    else if (exp.soundType === 'snap') sounds.playSnap();
-    else if (exp.soundType === 'success') sounds.playSuccess();
-    else sounds.playPop();
+  // Complex Logic Test Simulation: Bobi drives across the field -> encounters wall obstacle -> brakes -> reverses & turns away!
+  const runObstacleAvoidanceLogic = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (distanceIntervalRef.current) clearInterval(distanceIntervalRef.current);
 
-    setCurrent3DAction(exp.actionTrigger);
-    setActiveDialogue(exp.voiceResponse);
-    sounds.speak(exp.voiceResponse);
+    setLogicStep("moving_forward");
+    setObstacleDistance(150);
+    sfx.playMotor();
+    setControllerSignalActive(true);
+    setSignalBeamText("📡 ~ ~ ~ [LAPANGAN: MAJU MENUJU ARAH DEPAN] ~ ~ ~ ⚡ ➔ 🧠");
+    setEduAnimation("edu_move_obstacle");
+    setBobiStatusMessage("1️⃣ LAPANGAN: Bobi meluncur maju menjelajahi lapangan menuju arah depan! 🚗💨");
+
+    // Dynamic distance countdown from 150cm to 25cm
+    let currentDist = 150;
+    distanceIntervalRef.current = setInterval(() => {
+      currentDist = Math.max(25, currentDist - 15);
+      setObstacleDistance(currentDist);
+      if (currentDist <= 25 && distanceIntervalRef.current) {
+        clearInterval(distanceIntervalRef.current);
+      }
+    }, 280);
+
+    // Phase 2: Approaching wall (3.0s) - Sensor radar turns red, warning beacon flashes!
+    setTimeout(() => {
+      setLogicStep("wall_detected");
+      setObstacleDistance(25);
+      sfx.playObstacleAlert();
+      setBobiStatusMessage("2️⃣ AWAS TEMBOK! 🚨 Sensor mata melihat ada rintangan tembok di jarak 25 cm! Rem darurat!");
+    }, 3000);
+
+    // Phase 3: Thinking decision (4.5s)
+    setTimeout(() => {
+      setLogicStep("thinking");
+      sfx.playThink();
+      setBobiStatusMessage("3️⃣ OTAK BERPIKIR: 'Tembok berbahaya di depan! Keputusan logika: Mundur & Belok Kanan!' 🧠💭");
+    }, 4500);
+
+    // Phase 4: Evasive turn away (5.8s)
+    setTimeout(() => {
+      setLogicStep("turn_away");
+      setObstacleDistance(65);
+      sfx.playMotor();
+      setBobiStatusMessage("4️⃣ MOTOR MENGHINDAR: Roda berputar mundur lalu berbelok 37° ke kanan! Tembok terhindari! 🔄✨");
+    }, 5800);
+
+    // Phase 5: Success & Safe (8.0s)
+    setTimeout(() => {
+      setLogicStep("standby");
+      setObstacleDistance(150);
+      setControllerSignalActive(false);
+      setSignalBeamText("");
+      sfx.playBatteryCharge();
+      setBobiStatusMessage("🎉 Hore! Robo-Bobi berhasil melewati rintangan tembok di lapangan dengan selamat! Hebat!");
+    }, 8000);
   };
 
-  const handleSpeakText = (text: string) => {
-    sounds.playPop();
-    sounds.speak(text);
+  // Battery Full vs Empty simulation
+  const handleFeedBattery = (level: "full" | "empty") => {
+    if (level === "full") {
+      setBatteryLevel(100);
+      triggerControllerCommand(
+        "edu_battery_full",
+        "ENERGY: 100% KENYANG",
+        "Yummy! 🍚🥛 Baterai Bobi penuh 100%! Tubuhku berenergi dan siap melompat gembira! ⚡⚡⚡",
+        "battery"
+      );
+    } else {
+      setBatteryLevel(10);
+      triggerControllerCommand(
+        "edu_battery_low",
+        "ENERGY: 0% LEMAS",
+        "Aduuh... Bobi lapar belum makan baterai... Badanku lemas tidak kuat bergerak... Zzz 😴🪫",
+        "low"
+      );
+    }
   };
 
-  const handleToggleMute = () => {
-    const muted = sounds.toggleMute();
-    setIsMuted(muted);
-    if (!muted) sounds.playPop();
-  };
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (distanceIntervalRef.current) clearInterval(distanceIntervalRef.current);
+    };
+  }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-slate-50 to-indigo-50/40 text-slate-900 pb-12">
-      {/* Top Main Navigation Bar */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b-2 border-slate-200 px-4 lg:px-8 py-3.5 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Back to Assembly Workbench Button */}
-          <Link
-            href="/"
-            onClick={() => sounds.playPop()}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs lg:text-sm transition shadow-xs active:scale-95 border border-slate-200"
-          >
-            <ArrowLeft className="w-4 h-4 text-slate-700" />
-            <span>🏠 Kembali ke Meja Rakit</span>
-          </Link>
-
-          {/* Page Title & Badge */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+      {/* Top Header & Navigation */}
+      <header className="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3.5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-sky-500 flex items-center justify-center text-white text-2xl shadow-md shadow-indigo-200">
-              🔬
-            </div>
+            <Link
+              href="/"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 border border-slate-700/60 transition shadow-sm"
+            >
+              <span>⬅️</span>
+              <span>Kembali ke Bengkel</span>
+            </Link>
+            <div className="h-4 w-px bg-slate-800 hidden sm:block" />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight">
-                  LABORATORIUM CARA KERJA ROBOT
+                <span className="text-xl">🎪</span>
+                <h1 className="text-base sm:text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-300 to-amber-300">
+                  Taman Bermain Robo-Bobi 3D
                 </h1>
-                <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 hidden sm:inline">
-                  EDUKASI 3D
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  Khusus Robo-Bobi
                 </span>
               </div>
-              <p className="text-xs font-semibold text-slate-500">
-                Belajar Otak, Sensor, Motor, Baterai & Rangka lewat Analogi Tubuh Manusia
+              <p className="text-[11px] text-slate-400 hidden md:block">
+                Laboratorium visual seru untuk anak-anak mengenal Otak, Sensor, Motor, Baterai, dan Rangka Robot!
               </p>
             </div>
           </div>
 
-          {/* Sound Mute Toggle */}
-          <button
-            onClick={handleToggleMute}
-            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 border border-slate-200"
-            title={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
-          >
-            {isMuted ? (
-              <VolumeX className="w-5 h-5 text-red-500" />
-            ) : (
-              <Volume2 className="w-5 h-5 text-emerald-600" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/70 px-3 py-1.5 rounded-xl text-xs font-medium">
+              <span>🔋 Baterai:</span>
+              <span className={`font-bold ${batteryLevel > 30 ? "text-emerald-400" : "text-rose-400"}`}>
+                {batteryLevel}%
+              </span>
+              <div className="w-12 h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/80 ml-1">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    batteryLevel > 30 ? "bg-gradient-to-r from-emerald-500 to-cyan-400" : "bg-rose-500"
+                  }`}
+                  style={{ width: `${batteryLevel}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
-        {/* Robot Switcher & 5 Analogy Navigation Tabs */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 border-2 border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* 3D Robot Model Switcher */}
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-wider flex-shrink-0">
-              Pilih Robot 3D:
-            </span>
-            <div className="flex items-center gap-1.5 flex-nowrap">
-              {(
-                [
-                  { key: 'biped', label: 'Robo-Bobi', icon: '🤖' },
-                  { key: 'rover', label: 'Robo-Rover', icon: '🚜' },
-                  { key: 'arm', label: 'Robo-Arm', icon: '🦾' },
-                  { key: 'drone', label: 'Robo-Aero', icon: '🚁' },
-                  { key: 'pet', label: 'Robo-Puppy', icon: '🐶' },
-                ] as { key: RobotType; label: string; icon: string }[]
-              ).map(item => (
-                <button
-                  key={item.key}
-                  onClick={() => {
-                    sounds.playPop();
-                    setSelectedRobotType(item.key);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-black border transition whitespace-nowrap active:scale-95 ${
-                    selectedRobotType === item.key
-                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3.5 py-1.5 rounded-2xl flex items-center gap-1.5">
-            <span>✨ Sentuh tab di bawah untuk melihat bagian robot!</span>
-          </div>
-        </div>
-
-        {/* 5 Concept Tabs (Tubuh Manusia ➔ Bagian Robot) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {CONCEPTS.map(c => {
-            const isActive = c.id === activeConceptKey;
-            return (
-              <button
-                key={c.id}
-                onClick={() => handleSelectConcept(c.id)}
-                className={`p-3.5 rounded-3xl font-black text-left transition-all border-2 shadow-sm flex flex-col justify-between active:scale-95 ${
-                  isActive
-                    ? 'bg-white border-indigo-600 text-indigo-950 shadow-md ring-4 ring-indigo-100 scale-102'
-                    : 'bg-white/80 border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
+      {/* Main Interactive Playground */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+        {/* Signal Beam Visualizer Banner */}
+        <div
+          className={`relative overflow-hidden rounded-2xl p-3 sm:p-4 border transition-all duration-300 ${
+            controllerSignalActive
+              ? "bg-gradient-to-r from-purple-950/80 via-cyan-950/80 to-purple-950/80 border-cyan-400/60 shadow-[0_0_30px_rgba(34,211,238,0.25)] ring-1 ring-cyan-400/30"
+              : "bg-slate-900/60 border-slate-800/80"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-transform ${
+                  controllerSignalActive ? "scale-110 rotate-12 bg-cyan-500/30 border border-cyan-400" : "bg-slate-800"
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl">{c.humanIcon}</span>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${c.badgeColor}`}>
-                    {c.humanAnalogy}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
-                    {c.robotComponent.split('(')[0]}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1 line-clamp-1">
-                    {c.tagline}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 2 Columns: 3D Robot Interactive Stage & Educational Learning Pad */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* LEFT COLUMN: 3D Robot Stage (5 Cols) */}
-          <div className="lg:col-span-5 bg-gradient-to-b from-sky-50 via-indigo-50/40 to-purple-50/30 rounded-3xl p-5 border-2 border-indigo-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
-            {/* Robot Spoken Dialogue Bubble */}
-            <div className="w-full bg-white/95 rounded-2xl p-3.5 border-2 border-indigo-200 shadow-xs flex items-start gap-2.5 mb-2 relative">
-              <button
-                onClick={() => handleSpeakText(activeDialogue)}
-                className="w-9 h-9 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-700 flex items-center justify-center flex-shrink-0 transition active:scale-90"
-                title="Dengarkan Suara Robot"
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
+                {controllerSignalActive ? "📡" : "🎮"}
+              </div>
               <div className="flex-1">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wider block">
-                  Suara Robot:
-                </span>
-                <p className="text-xs font-bold text-slate-800 leading-snug mt-0.5">
-                  "{activeDialogue}"
-                </p>
+                <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                  {controllerSignalActive ? "Transmisi Sinyal Aktif!" : "Status Kendali Robot"}
+                </div>
+                <div className="text-sm font-semibold text-slate-200">
+                  {controllerSignalActive ? (
+                    <span className="text-cyan-300 font-mono tracking-wider animate-pulse">
+                      {signalBeamText}
+                    </span>
+                  ) : (
+                    <span>Remote Kontrol Siap Mengirim Sinyal ke Robo-Bobi</span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* 3D Model Live Canvas */}
-            <div className="w-full h-[420px] sm:h-[480px] flex items-center justify-center relative">
+            {/* Bubble speech Bobi */}
+            <div className="w-full sm:w-auto sm:max-w-md bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs flex items-center gap-2">
+              <span className="text-base flex-shrink-0">🤖</span>
+              <p className="text-slate-300 italic font-medium leading-relaxed">
+                &ldquo;{bobiStatusMessage}&rdquo;
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2-Column Split: 3D Canvas + Virtual Remote Controller */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left: 3D Stage (7 Columns) */}
+          <div className="lg:col-span-7 flex flex-col gap-3">
+            <div className="relative w-full h-[460px] sm:h-[520px] rounded-3xl overflow-hidden border-2 border-slate-800 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 shadow-2xl">
+              {/* Three.js Viewer Canvas */}
               <ThreeRobotViewer
+                robotType={robotType}
+                actionTrigger={eduAnimation}
                 className="w-full h-full"
-                robotType={selectedRobotType}
-                isDancing={false}
-                actionTrigger={current3DAction}
               />
 
-              {/* 360 Orbit Drag Badge */}
-              <div className="absolute bottom-3 left-3 bg-slate-900/60 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-full pointer-events-none">
-                🔄 Geser layar untuk memutar robot 360°
+              {/* Status Badge & Sensor HUD in 3D Stage */}
+              <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                <div className="flex items-center gap-2 bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-700/80 shadow-lg">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="text-xs font-bold text-cyan-200">Robo-Bobi di Lapangan</span>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-800/60">🏟️ Arena 3D</span>
+                </div>
+                {logicStep !== "standby" && (
+                  <div className="bg-slate-950/90 backdrop-blur-md border border-cyan-500/40 px-3.5 py-1.5 rounded-2xl shadow-xl flex items-center gap-2 animate-pulse">
+                    <span className="text-sm">
+                      {logicStep === "moving_forward" && "🟢"}
+                      {logicStep === "wall_detected" && "🚨"}
+                      {logicStep === "thinking" && "🧠"}
+                      {logicStep === "turn_away" && "🔄"}
+                    </span>
+                    <span className="text-xs font-black text-cyan-200">
+                      {logicStep === "moving_forward" && "1. Meluncur di Lapangan Menuju Arah Depan"}
+                      {logicStep === "wall_detected" && "2. AWAS TEMBOK! Terdeteksi di Jarak 25cm!"}
+                      {logicStep === "thinking" && "3. Otak Menghitung: Mundur & Belok Kanan!"}
+                      {logicStep === "turn_away" && "4. Motor Roda Berbelok Menghindar!"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Top-Right: Live Obstacle & Ultrasonic Distance HUD */}
+              <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+                <div className="bg-slate-950/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-800 shadow-xl flex flex-col items-end gap-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <span>📡 Sensor Mata (Ultrasonik)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-slate-300">Jarak Tembok:</span>
+                    <span
+                      className={`text-sm font-black font-mono px-2 py-0.5 rounded-md border ${
+                        obstacleDistance <= 30
+                          ? "bg-rose-950/80 text-rose-300 border-rose-500 animate-pulse"
+                          : obstacleDistance <= 70
+                          ? "bg-amber-950/80 text-amber-300 border-amber-500"
+                          : "bg-emerald-950/80 text-emerald-300 border-emerald-500"
+                      }`}
+                    >
+                      {obstacleDistance} cm
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-slate-500 flex items-center gap-1">
+                    <span>🧱 Rintangan: Tembok di Depan</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls prompt overlay bottom */}
+              <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
+                <div className="bg-slate-950/85 backdrop-blur-md border border-slate-800 text-[11px] text-slate-300 px-3 py-1.5 rounded-xl shadow-lg">
+                  🖱️ <span className="text-slate-400">Putar sudut 3D dengan drag mouse / sentuhan layar</span>
+                </div>
+                <div className="bg-slate-950/85 backdrop-blur-md border border-slate-800 text-[11px] text-cyan-300 px-3 py-1.5 rounded-xl font-mono shadow-lg">
+                  Modus: {eduAnimation.replace("edu_", "").toUpperCase()}
+                </div>
               </div>
             </div>
 
-            {/* System Status Pill */}
-            <div className="mt-2 bg-white rounded-2xl p-3 border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-700 shadow-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                <span>Sistem yang Diuji:</span>
-              </span>
-              <span className="text-indigo-600 font-extrabold truncate">
-                {activeConcept.title}
-              </span>
+            {/* Quick 3D Camera / Pose Presets */}
+            <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+              <span>💡 Cobalah putar Bobi ke samping untuk melihat roda motor & casing belakangnya!</span>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Interactive Learning Pad & Experiments (7 Cols) */}
-          <div className="lg:col-span-7 flex flex-col justify-between space-y-5">
-            {/* Active Concept Explanation Banner */}
-            <div
-              className={`p-5 rounded-3xl bg-gradient-to-r ${activeConcept.bgGradient} border-2 ${activeConcept.borderColor} shadow-sm`}
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${activeConcept.badgeColor}`}>
-                    {activeConcept.humanIcon} {activeConcept.humanAnalogy} ➔ {activeConcept.robotIcon} {activeConcept.robotComponent}
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                    {activeConcept.title}
-                  </h2>
-                  <p className="text-xs font-bold text-slate-600 mt-1">
-                    {activeConcept.tagline}
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleSpeakText(activeConcept.voiceText)}
-                  className="p-3 rounded-2xl bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-xs transition active:scale-95 flex-shrink-0"
-                  title="Bacakan Penjelasan Lengkap"
-                >
-                  <Volume2 className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Comparison Box (Manusia vs Robot) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4">
-                <div className="p-3.5 bg-white/95 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center gap-1.5 text-xs font-black text-slate-800 mb-1.5">
-                    <span>🧒 PADA TUBUH KITA:</span>
+          {/* Right: The Virtual Gamepad / Robot Controller (5 Columns) */}
+          <div className="lg:col-span-5 flex flex-col gap-4">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border-2 border-cyan-500/30 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex flex-col justify-between">
+              {/* Controller Header Decoration */}
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
+                    <div className="w-3 h-3 rounded-full bg-amber-500" />
+                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-black tracking-wider uppercase text-slate-300 ml-1">
+                      Remote Kendali Robo-Bobi
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    {activeConcept.humanExplanation}
-                  </p>
-                </div>
-
-                <div className="p-3.5 bg-white/95 rounded-2xl border border-indigo-200 shadow-xs">
-                  <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900 mb-1.5">
-                    <span>🤖 PADA TUBUH ROBOT:</span>
+                  <div className="flex items-center gap-1 text-[11px] font-mono text-cyan-400 bg-cyan-950/60 px-2.5 py-0.5 rounded-lg border border-cyan-800/60">
+                    <span>TX 2.4GHz</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-0.5" />
                   </div>
-                  <p className="text-xs text-indigo-950/80 leading-relaxed font-medium">
-                    {activeConcept.robotExplanation}
-                  </p>
                 </div>
-              </div>
-            </div>
 
-            {/* Interactive 3D Experiment Buttons */}
-            <div className="p-5 rounded-3xl bg-white border-2 border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
-                  <Play className="w-4 h-4 text-emerald-600 fill-emerald-500" />
-                  <span>Ayo Coba Sendiri! (Picu Animasi 3D Robot 🎮)</span>
-                </h3>
-                <span className="text-[11px] font-bold text-slate-400">Sentuh tombol di bawah</span>
-              </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  Tekan tombol di bawah untuk mengirimkan <strong className="text-cyan-300">sinyal radio</strong> ke otak Bobi dan saksikan responnya di panggung 3D!
+                </p>
 
-              <div className="space-y-3">
-                {activeConcept.experiments.map((exp, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-2xl bg-slate-50 hover:bg-indigo-50/50 border-2 border-slate-200 hover:border-indigo-300 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-black text-xs sm:text-sm text-slate-900 truncate">
-                        {exp.label}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                        {exp.description}
-                      </p>
-                    </div>
+                {/* Section A: Otak & Logika (The Core Request) */}
+                <div className="mb-4">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-purple-400 mb-2 flex items-center gap-1.5">
+                    <span>🧠</span>
+                    <span>1. Otak & Komputer (Logika)</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_brain_signal",
+                          "KIRIM SINYAL PIKIR",
+                          "Otakku sedang berpikir keras dan mengolah instruksi coding dari kamu! Cincin data menyala ungu! 🧠✨",
+                          "think"
+                        )
+                      }
+                      className="p-2.5 rounded-xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 hover:border-purple-400 text-left transition flex items-center gap-2.5 shadow-sm active:scale-95 group"
+                    >
+                      <span className="text-xl group-hover:scale-125 transition-transform">🧠</span>
+                      <div>
+                        <div className="text-xs font-bold text-purple-200">Kirim Sinyal Pikir</div>
+                        <div className="text-[10px] text-purple-400">Halo digital otak aktif</div>
+                      </div>
+                    </button>
 
                     <button
-                      onClick={() => handleRunExperiment(exp)}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black text-xs shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-blue-700 transition active:scale-95 flex items-center gap-1.5 flex-shrink-0"
+                      onClick={runObstacleAvoidanceLogic}
+                      className={`p-3 rounded-2xl border text-left transition flex items-center gap-2.5 shadow-lg active:scale-95 group col-span-1 sm:col-span-2 ${
+                        logicStep !== "standby"
+                          ? "bg-gradient-to-r from-cyan-900/90 via-purple-900/90 to-amber-900/90 border-cyan-300 ring-2 ring-cyan-400/50 animate-pulse"
+                          : "bg-gradient-to-r from-cyan-950/70 to-purple-950/70 hover:from-cyan-900/90 hover:to-purple-900/90 border-cyan-400/60 hover:border-cyan-300"
+                      }`}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Tes 3D Sekarang!</span>
+                      <span className="text-2xl group-hover:scale-125 transition-transform flex-shrink-0">🧱</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-cyan-200">Uji Logika Tembok di Lapangan!</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/30 text-cyan-300 border border-cyan-400/40">
+                            {logicStep !== "standby" ? "Sedang Menguji ⚡" : "Simulasi Seru"}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-300 mt-0.5">
+                          Bobi meluncur di lapangan ➔ ada rintangan tembok ➔ sensor mendeteksi ➔ mundur & belok!
+                        </div>
+                      </div>
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Pedagogical Discussion Prompt */}
-            <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-950 flex items-start gap-3">
-              <HelpCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-black text-amber-900 block mb-0.5">
-                  💡 Tips Diskusi Seru Bersama Anak (Pedagogi PAUD/TK):
-                </span>
-                <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
-                  {activeConcept.pedagogicalQuestion}
-                </p>
+                {/* Section B: Mata & Sensor */}
+                <div className="mb-4">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 mb-2 flex items-center gap-1.5">
+                    <span>👀</span>
+                    <span>2. Mata & Telinga (Sensor)</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_sensor_eye",
+                          "RADAR MATA AKTIF",
+                          "Mata ultrasonikku memancarkan radar cyan untuk mengukur jarak benda di depanku! 👁️📐",
+                          "alert"
+                        )
+                      }
+                      className="p-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 hover:border-cyan-300 text-center transition active:scale-95 group"
+                    >
+                      <span className="text-lg block group-hover:scale-125 transition-transform">👁️</span>
+                      <span className="text-[10px] font-bold text-cyan-200 block mt-0.5">Mata Radar</span>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_sensor_sound",
+                          "DETEKSI SUARA",
+                          "Telinga mikrofonku mendengar tepukan tanganmu! Prok prok prok! 👂🎶",
+                          "signal"
+                        )
+                      }
+                      className="p-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 hover:border-cyan-300 text-center transition active:scale-95 group"
+                    >
+                      <span className="text-lg block group-hover:scale-125 transition-transform">👂</span>
+                      <span className="text-[10px] font-bold text-cyan-200 block mt-0.5">Sensor Suara</span>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_sensor_touch",
+                          "SENSOR SENTUH",
+                          "Kulit bumperku merasakan sentuhan! Bobi tahu ada yang memegang! ✋⚡",
+                          "signal"
+                        )
+                      }
+                      className="p-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 hover:border-cyan-300 text-center transition active:scale-95 group"
+                    >
+                      <span className="text-lg block group-hover:scale-125 transition-transform">✋</span>
+                      <span className="text-[10px] font-bold text-cyan-200 block mt-0.5">Kulit Sentuh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section C: Tangan & Kaki (Motor & D-Pad) */}
+                <div className="mb-4">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-2 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span>🦾</span>
+                      <span>3. Tangan & Kaki (Motor Listrik)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">D-Pad Kontroler</span>
+                  </div>
+
+                  {/* D-Pad Layout */}
+                  <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_motor_drive",
+                          "MAJU RODA",
+                          "Kedua motor roda berputar ke depan! Bobi meluncur maju! 🚗💨",
+                          "motor"
+                        )
+                      }
+                      className="px-5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-800/80 border border-emerald-500/50 text-emerald-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition shadow-sm"
+                    >
+                      <span>⬆️</span>
+                      <span>Maju Depan</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() =>
+                          triggerControllerCommand(
+                            "edu_turn_left",
+                            "BELOK KIRI",
+                            "Motor kanan berputar lebih cepat, Bobi berbelok ke kiri! ⬅️🔄",
+                            "motor"
+                          )
+                        }
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-800/80 border border-emerald-500/50 text-emerald-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition shadow-sm"
+                      >
+                        <span>⬅️</span>
+                        <span>Belok Kiri</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          triggerControllerCommand(
+                            "edu_motor_arm",
+                            "LAMBAI TANGAN",
+                            "Motor servo di lengan kananku bergerak: Halo teman-teman semua! 👋🤖",
+                            "signal"
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition"
+                      >
+                        <span>👋</span>
+                        <span>Sapa</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          triggerControllerCommand(
+                            "edu_turn_right",
+                            "BELOK KANAN",
+                            "Motor kiri berputar lebih cepat, Bobi berbelok ke kanan! ➡️🔄",
+                            "motor"
+                          )
+                        }
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-800/80 border border-emerald-500/50 text-emerald-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition shadow-sm"
+                      >
+                        <span>Belok Kanan</span>
+                        <span>➡️</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={() =>
+                          triggerControllerCommand(
+                            "edu_magnet",
+                            "CAPIT MAGNET",
+                            "Lengan kiri mengaktifkan elektromagnet! Benda logam menempel kuat! 🧲⚡",
+                            "signal"
+                          )
+                        }
+                        className="px-3 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[10px] font-semibold flex items-center gap-1 active:scale-95"
+                      >
+                        <span>🧲 Capit Magnet</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section D: Makanan (Baterai) & Tulang (Rangka) */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Baterai */}
+                  <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 flex flex-col justify-between">
+                    <div className="text-[11px] font-bold uppercase text-amber-300 flex items-center gap-1 mb-2">
+                      <span>🔋</span>
+                      <span>4. Makanan Robot</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        onClick={() => handleFeedBattery("full")}
+                        className="w-full py-1.5 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 border border-amber-400 text-amber-200 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1"
+                      >
+                        <span>⚡ Cas 100%</span>
+                      </button>
+                      <button
+                        onClick={() => handleFeedBattery("empty")}
+                        className="w-full py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-300 text-[10px] font-semibold active:scale-95 transition flex items-center justify-center gap-1"
+                      >
+                        <span>🪫 Buat Lemas (0%)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rangka & Casing */}
+                  <div className="p-3 rounded-2xl bg-rose-950/30 border border-rose-500/30 flex flex-col justify-between">
+                    <div className="text-[11px] font-bold uppercase text-rose-300 flex items-center gap-1 mb-2">
+                      <span>🛡️</span>
+                      <span>5. Rangka & Casing</span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        triggerControllerCommand(
+                          "edu_casing",
+                          "PERISAI RANGKA",
+                          "Kubah pelindung hologram aktif! Tulang dan casing kokoh menjaga komponen dalam Bobi tetap aman! 🛡️🤖",
+                          "shield"
+                        )
+                      }
+                      className="w-full py-2.5 rounded-xl bg-rose-500/30 hover:bg-rose-500/40 border border-rose-400 text-rose-200 text-xs font-bold active:scale-95 transition flex flex-col items-center justify-center gap-0.5 shadow-sm"
+                    >
+                      <span>🛡️ Uji Kekuatan Casing</span>
+                      <span className="text-[9px] text-rose-300/80 font-normal">Aktifkan Kubah Perisai</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Controller Footer Tag */}
+              <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-500 text-center">
+                🎮 Remote Controller Virtual • Mode Belajar Anak • Robo-Bobi Playground
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Full Reference Summary Table */}
-        <div className="bg-white rounded-3xl p-5 border-2 border-slate-200 shadow-sm overflow-x-auto">
-          <div className="mb-3">
-            <span className="text-[11px] font-black text-indigo-600 uppercase tracking-wider block">
-              Ringkasan Materi Cilik
-            </span>
-            <h3 className="text-base font-black text-slate-900">
-              📚 Tabel Pintar: Analogi Tubuh Manusia vs Komponen Robot
-            </h3>
+        {/* 5 Pedagogical Analogy Cards */}
+        <section className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-100 flex items-center gap-2">
+                <span>📖</span>
+                <span>5 Bagian Tubuh Robot vs Tubuh Manusia</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Pahami cara robot hidup dan bekerja lewat perbandingan dengan tubuh kita sendiri!
+              </p>
+            </div>
           </div>
 
-          <table className="w-full min-w-[700px] text-xs text-left border-collapse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CONCEPTS.map((c) => {
+              const isSelected = activeConcept === c.id;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setActiveConcept(c.id);
+                    triggerControllerCommand(
+                      c.playgroundMode,
+                      c.humanAnalogy.toUpperCase(),
+                      c.description,
+                      "think"
+                    );
+                  }}
+                  className={`cursor-pointer rounded-2xl p-4 transition-all duration-300 flex flex-col justify-between border ${
+                    isSelected
+                      ? `bg-slate-900 border-2 ${c.badgeBorder} shadow-lg ring-1 ring-cyan-500/20`
+                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90"
+                  }`}
+                >
+                  <div>
+                    {/* Badge comparison */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
+                        <span className="text-base">{c.humanIcon}</span>
+                        <span className="text-xs font-bold text-slate-200">{c.humanAnalogy}</span>
+                      </div>
+                      <span className="text-slate-500 text-xs font-bold">➔</span>
+                      <div className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold ${c.badgeColor}`}>
+                        <span>{c.robotIcon}</span> {c.robotComponent.split("(")[0].trim()}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                      {c.description}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <span className="text-[10px] text-amber-300/90 flex items-center gap-1 italic">
+                      💡 {c.funFact}
+                    </span>
+                    <button
+                      className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition ${
+                        isSelected
+                          ? "bg-cyan-500 text-slate-950 border-cyan-400"
+                          : "bg-slate-800 text-slate-300 border-slate-700"
+                      }`}
+                    >
+                      Uji 3D
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Bonus Interactive Card: Summary Table */}
+            <div className="rounded-2xl p-4 bg-gradient-to-br from-cyan-950/40 via-purple-950/30 to-slate-900 border border-cyan-500/40 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2 text-cyan-300">
+                  <span className="text-xl">🏆</span>
+                  <h3 className="text-xs font-black uppercase tracking-wider">Kesimpulan Cepat</h3>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                  Robot bukanlah benda magis, melainkan mesin cerdas yang bekerja sama:
+                </p>
+                <div className="space-y-1.5 text-[11px] text-slate-300">
+                  <div className="flex items-center justify-between bg-slate-950/60 px-2 py-1 rounded-lg">
+                    <span>1. Sensor menerima informasi</span>
+                    <span className="text-cyan-400 font-bold">Melihat</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-950/60 px-2 py-1 rounded-lg">
+                    <span>2. Kontroler mengambil keputusan</span>
+                    <span className="text-purple-400 font-bold">Berpikir</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-950/60 px-2 py-1 rounded-lg">
+                    <span>3. Motor melakukan tindakan</span>
+                    <span className="text-emerald-400 font-bold">Bergerak</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-slate-800/80 text-center">
+                <Link
+                  href="/"
+                  className="inline-block w-full text-center text-xs font-bold py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md transition"
+                >
+                  🚀 Ayo Rakit & Beri Perintah Coding!
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom Educational Table */}
+        <section className="mt-2 bg-slate-900/60 border border-slate-800 rounded-3xl p-5 overflow-x-auto">
+          <h3 className="text-sm font-black text-slate-200 mb-3 flex items-center gap-2">
+            <span>📋</span>
+            <span>Tabel Perbandingan Lengkap: Tubuh Manusia vs Tubuh Robo-Bobi</span>
+          </h3>
+
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b-2 border-slate-200 bg-slate-50">
-                <th className="py-2.5 px-3 font-black text-slate-800 rounded-l-xl">Bagian Tubuh Kita</th>
-                <th className="py-2.5 px-3 font-black text-indigo-800">Komponen Robot</th>
-                <th className="py-2.5 px-3 font-black text-slate-800 rounded-r-xl">Fungsi Serunya untuk Robot</th>
+              <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase font-bold tracking-wider">
+                <th className="py-2.5 px-3">Tubuh Manusia</th>
+                <th className="py-2.5 px-3">Bagian Robot</th>
+                <th className="py-2.5 px-3">Tugas & Fungsi</th>
+                <th className="py-2.5 px-3">Contoh di Robo-Bobi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {CONCEPTS.map(c => {
-                const isCurrent = c.id === activeConceptKey;
-                return (
-                  <tr
-                    key={c.id}
-                    onClick={() => handleSelectConcept(c.id)}
-                    className={`cursor-pointer transition ${
-                      isCurrent ? 'bg-indigo-50/70 font-bold' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <td className="py-3 px-3">
-                      <span className="mr-1.5">{c.humanIcon}</span>
-                      <strong className="text-slate-900">{c.humanAnalogy}</strong>
-                    </td>
-                    <td className="py-3 px-3 text-indigo-700 font-extrabold">
-                      <span className="mr-1.5">{c.robotIcon}</span>
-                      {c.robotComponent}
-                    </td>
-                    <td className="py-3 px-3 text-slate-600">
-                      {c.tagline}
-                    </td>
-                  </tr>
-                );
-              })}
+            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tr className="hover:bg-slate-850/40">
+                <td className="py-2.5 px-3 font-semibold text-purple-300">🧠 Otak</td>
+                <td className="py-2.5 px-3 font-medium text-purple-400">Komputer Kecil / Kontroler</td>
+                <td className="py-2.5 px-3">Tempat berpikir, menghitung logika, dan mengingat perintah program.</td>
+                <td className="py-2.5 px-3 text-slate-400">Microcontroller Arduino / ESP32 di dalam dada Bobi</td>
+              </tr>
+              <tr className="hover:bg-slate-850/40">
+                <td className="py-2.5 px-3 font-semibold text-cyan-300">👀 👂 ✋ Mata, Telinga, Kulit</td>
+                <td className="py-2.5 px-3 font-medium text-cyan-400">Sensor (Ultrasonik, Suara, Sentuh)</td>
+                <td className="py-2.5 px-3">Melihat jalan, mendeteksi jarak, mendengar tepukan, dan merasakan benda.</td>
+                <td className="py-2.5 px-3 text-slate-400">Sensor jarak ultrasonik di kacamata Bobi</td>
+              </tr>
+              <tr className="hover:bg-slate-850/40">
+                <td className="py-2.5 px-3 font-semibold text-emerald-300">🦾 🦵 Tangan & Kaki</td>
+                <td className="py-2.5 px-3 font-medium text-emerald-400">Motor / Roda / Servo</td>
+                <td className="py-2.5 px-3">Alat untuk berjalan lurus, berbelok, melambai, atau mengambil barang.</td>
+                <td className="py-2.5 px-3 text-slate-400">Dua roda hoverboard & servo lengan Bobi</td>
+              </tr>
+              <tr className="hover:bg-slate-850/40">
+                <td className="py-2.5 px-3 font-semibold text-amber-300">🍚 🥛 Nasi & Susu (Makanan)</td>
+                <td className="py-2.5 px-3 font-medium text-amber-400">Baterai (Power Supply)</td>
+                <td className="py-2.5 px-3">Makanan robot supaya bugar, kuat bergerak, dan tidak lemas (mati daya).</td>
+                <td className="py-2.5 px-3 text-slate-400">Baterai Lithium rechargeable di punggung Bobi</td>
+              </tr>
+              <tr className="hover:bg-slate-850/40">
+                <td className="py-2.5 px-3 font-semibold text-rose-300">🦴 🛡️ Tulang & Kulit</td>
+                <td className="py-2.5 px-3 font-medium text-rose-400">Rangka / Casing (Chassis)</td>
+                <td className="py-2.5 px-3">Pelindung bagian dalam agar komponen elektronik tidak rusak saat jatuh.</td>
+                <td className="py-2.5 px-3 text-slate-400">Rangka bodi biru kokoh anti gores milik Bobi</td>
+              </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </main>
+        </section>
+      </main>
+    </div>
   );
 }

@@ -56,6 +56,9 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
   const eduBrainRingRef = useRef<THREE.Mesh | null>(null);
   const eduShieldRef = useRef<THREE.Mesh | null>(null);
   const eduBatterySparkRef = useRef<THREE.Mesh | null>(null);
+  const bobiFieldGroupRef = useRef<THREE.Group | null>(null);
+  const bobiWallGroupRef = useRef<THREE.Group | null>(null);
+  const bobiWallBeaconRef = useRef<THREE.Mesh | null>(null);
 
   const [viewAngle, setViewAngle] = useState<'front' | 'top'>('front');
   const setTopViewRef = useRef<(() => void) | null>(null);
@@ -77,8 +80,8 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       camera.position.set(0, 1.4, 6.8);
       camera.lookAt(0, 0.55, 0);
     } else if (robotType === 'biped') {
-      camera.position.set(0, 0.9, 6.4);
-      camera.lookAt(0, 0.45, 0);
+      camera.position.set(2.4, 2.0, 7.0);
+      camera.lookAt(0, 0.45, 0.6);
     } else {
       camera.position.set(0, 0.6, 5.8);
       camera.lookAt(0, 0.25, 0);
@@ -113,14 +116,17 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     const platform = new THREE.Mesh(platformGeo, platformMat);
     platform.position.y = -1.15;
     platform.receiveShadow = true;
-    scene.add(platform);
 
     const platformRingGeo = new THREE.RingGeometry(1.6, 1.85, 32);
     const platformRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
     const platformRing = new THREE.Mesh(platformRingGeo, platformRingMat);
     platformRing.rotation.x = -Math.PI / 2;
     platformRing.position.y = -1.02;
-    scene.add(platformRing);
+
+    if (robotType !== 'biped') {
+      scene.add(platform);
+      scene.add(platformRing);
+    }
 
     // 4. Build 3D Robot Models
     const robotGroup = new THREE.Group();
@@ -334,6 +340,123 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     }
 
     if (robotType === 'biped') {
+      // --- ARENA LAPANGAN BERMAIN ROBOT (Testing Playground Field) ---
+      const fieldGroup = new THREE.Group();
+      scene.add(fieldGroup);
+      bobiFieldGroupRef.current = fieldGroup;
+
+      // Field Floor Mat (Turf Green / High-tech Arena Mat)
+      const fieldFloorGeo = new THREE.PlaneGeometry(14, 18);
+      const fieldFloorMat = new THREE.MeshStandardMaterial({
+        color: 0x0f2e22, // Deep turf green / robot test mat
+        roughness: 0.8,
+        metalness: 0.1,
+      });
+      const fieldFloor = new THREE.Mesh(fieldFloorGeo, fieldFloorMat);
+      fieldFloor.rotation.x = -Math.PI / 2;
+      fieldFloor.position.y = -1.14;
+      fieldFloor.receiveShadow = true;
+      fieldGroup.add(fieldFloor);
+
+      // Arena Grid Lines (Lighter Emerald Grid)
+      const arenaGrid = new THREE.GridHelper(14, 14, 0x10b981, 0x064e3b);
+      arenaGrid.position.y = -1.138;
+      fieldGroup.add(arenaGrid);
+
+      // Start Area Marking Box (Cyan outlined zone behind Bobi)
+      const startBoxGeo = new THREE.RingGeometry(0.7, 0.85, 32);
+      const startBoxMat = new THREE.MeshBasicMaterial({
+        color: 0x22d3ee,
+        side: THREE.DoubleSide,
+      });
+      const startBox = new THREE.Mesh(startBoxGeo, startBoxMat);
+      startBox.rotation.x = -Math.PI / 2;
+      startBox.position.set(0, -1.135, -1.2);
+      fieldGroup.add(startBox);
+
+      // 4 Arena Corner Safety Pylons (Orange/White Traffic Pylons with glowing LED tips)
+      const pylonPositions = [
+        [-5.5, -6.5],
+        [5.5, -6.5],
+        [-5.5, 6.5],
+        [5.5, 6.5],
+      ];
+      pylonPositions.forEach(([px, pz]) => {
+        const pylonBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.2, 0.32, 0.75, 16),
+          new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+        );
+        pylonBase.position.set(px, -0.76, pz);
+        fieldGroup.add(pylonBase);
+
+        const pylonTip = new THREE.Mesh(
+          new THREE.SphereGeometry(0.09, 12, 12),
+          new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+        );
+        pylonTip.position.set(px, -0.32, pz);
+        fieldGroup.add(pylonTip);
+      });
+
+      // --- RINTANGAN TEMBOK 3D (Wall Obstacle with Hazard Caution Stripes) ---
+      const wallGroup = new THREE.Group();
+      wallGroup.position.set(0, -1.14, 2.7); // Positioned ahead in front of Bobi
+      scene.add(wallGroup);
+      bobiWallGroupRef.current = wallGroup;
+
+      // Base wall blocks (Sturdy brick / composite barrier wall)
+      const wallGeo = new THREE.BoxGeometry(3.6, 1.4, 0.5);
+      const wallMat = new THREE.MeshStandardMaterial({
+        color: 0x334155, // Slate barrier
+        roughness: 0.6,
+        metalness: 0.2,
+      });
+      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+      wallMesh.position.y = 0.7;
+      wallMesh.castShadow = true;
+      wallMesh.receiveShadow = true;
+      wallGroup.add(wallMesh);
+
+      // Wall Hazard Caution Stripes (Yellow warning band)
+      const stripeGeo = new THREE.BoxGeometry(3.4, 0.3, 0.52);
+      const stripeMat = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24, // Warning amber yellow
+        roughness: 0.4,
+      });
+      const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
+      stripeMesh.position.y = 0.7;
+      wallGroup.add(stripeMesh);
+
+      // Hazard Black Chevrons (Accent dark bands)
+      [-1.0, -0.5, 0, 0.5, 1.0].forEach((cx) => {
+        const chevron = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.32, 0.54),
+          new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 })
+        );
+        chevron.position.set(cx, 0.7, 0);
+        wallGroup.add(chevron);
+      });
+
+      // Top Red Warning Flashing Beacon Light
+      const beaconGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.22, 16);
+      const beaconMat = new THREE.MeshStandardMaterial({
+        color: 0xef4444,
+        emissive: 0xef4444,
+        emissiveIntensity: 1.5,
+        roughness: 0.2,
+      });
+      const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+      beaconMesh.position.set(0, 1.52, 0);
+      wallGroup.add(beaconMesh);
+      bobiWallBeaconRef.current = beaconMesh;
+
+      // Red Warning Plate: "AWAS TEMBOK"
+      const signBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(1.6, 0.35, 0.56),
+        new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 })
+      );
+      signBoard.position.set(0, 1.15, 0);
+      wallGroup.add(signBoard);
+
       // --- ROBO-BOBI (High-Fidelity Humanoid Companion Robot) ---
       const bobiGroup = new THREE.Group();
       bobiGroup.position.y = 0.20;
@@ -1697,28 +1820,90 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
           // --- ROBO-BOBI (Humanoid Companion Social Robotics) ---
           const isDriving = actionTrigger === 'move_forward' || actionTrigger === 'edu_motor' || actionTrigger === 'edu_motor_drive';
           const isWaving = actionTrigger === 'wave_hand' || isDancing || actionTrigger === 'edu_motor_arm';
-          const isSpeaking = actionTrigger === 'beep_sound' || actionTrigger === 'edu_brain';
+          const isSpeaking = actionTrigger === 'beep_sound' || actionTrigger === 'edu_brain' || actionTrigger === 'edu_brain_signal';
           const isSleepy = actionTrigger === 'edu_battery_low';
           const isEnergized = actionTrigger === 'edu_battery_full';
-          const isSensorScan = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye';
+          const isSensorScan = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye' || actionTrigger === 'edu_move_obstacle';
+          const isTurnLeft = actionTrigger === 'edu_turn_left';
+          const isTurnRight = actionTrigger === 'edu_turn_right';
+          const isMoveObstacle = actionTrigger === 'edu_move_obstacle';
+          const isTouchReact = actionTrigger === 'edu_sensor_touch';
+          const isMagnetOn = actionTrigger === 'edu_magnet';
 
           const bobiBaseY = 0.0 + yOffset;
 
           if (isSleepy) {
             // Robot is exhausted / battery depleted
             robotGroup.position.y = bobiBaseY - 0.24;
+            robotGroup.position.z = 0;
             robotGroup.rotation.x = 0.15;
+            robotGroup.rotation.y = 0;
             robotGroup.rotation.z = 0;
           } else if (isEnergized) {
             // Happy energetic bounce
             robotGroup.position.y = bobiBaseY + Math.abs(Math.sin(time * 6)) * 0.14;
+            robotGroup.position.z = 0;
             robotGroup.rotation.z = Math.sin(time * 5) * 0.04;
+            robotGroup.rotation.y = 0;
             robotGroup.rotation.x = -0.04;
+          } else if (isMoveObstacle) {
+            // Forward toward obstacle on the field, stops when sensor detects obstacle wall, reverses & turns!
+            const cycleTime = (time * 0.9) % 8.0;
+
+            if (cycleTime < 3.2) {
+              // 1. Moving forward across the field towards the obstacle wall
+              const t = cycleTime / 3.2; // 0 to 1
+              robotGroup.position.z = -1.2 + t * 2.4; // Moves from -1.2 to +1.2
+              robotGroup.position.y = bobiBaseY + Math.sin(time * 10) * 0.015;
+              robotGroup.rotation.x = -0.08; // Leaning forward into acceleration
+              robotGroup.rotation.y = 0;
+              robotGroup.rotation.z = Math.sin(time * 6) * 0.015;
+              wheelsRef.current.forEach(w => { w.rotation.x += 0.35; });
+            } else if (cycleTime < 4.5) {
+              // 2. Obstacle detected! Sensor radar flashes red alert, Bobi stops!
+              robotGroup.position.z = 1.2;
+              robotGroup.position.y = bobiBaseY;
+              robotGroup.rotation.x = 0.08; // Brake lean back
+              robotGroup.rotation.y = Math.sin(time * 8) * 0.08; // Curious alert head/body shake
+              robotGroup.rotation.z = 0;
+            } else if (cycleTime < 5.8) {
+              // 3. Reverse backward away from the wall
+              const tRev = (cycleTime - 4.5) / 1.3;
+              robotGroup.position.z = 1.2 - tRev * 0.45; // Backs up from 1.2 to 0.75
+              robotGroup.position.y = bobiBaseY + Math.sin(time * 8) * 0.012;
+              robotGroup.rotation.x = 0.04;
+              robotGroup.rotation.y = 0;
+              wheelsRef.current.forEach(w => { w.rotation.x -= 0.25; });
+            } else {
+              // 4. Turn wheels and steer safely away to the right!
+              robotGroup.position.z = 0.75;
+              robotGroup.position.y = bobiBaseY + Math.sin(time * 8) * 0.012;
+              robotGroup.rotation.x = -0.04;
+              robotGroup.rotation.y = 0.65; // Turned 37 degrees away from wall
+              robotGroup.rotation.z = 0.04;
+              wheelsRef.current.forEach(w => { w.rotation.x += 0.3; });
+            }
+          } else if (isTurnLeft) {
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.01;
+            robotGroup.rotation.y = Math.sin(time * 3) * 0.55;
+            robotGroup.rotation.z = -0.05;
+            wheelsRef.current.forEach(w => { w.rotation.x += 0.25; });
+          } else if (isTurnRight) {
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.01;
+            robotGroup.rotation.y = -Math.sin(time * 3) * 0.55;
+            robotGroup.rotation.z = 0.05;
+            wheelsRef.current.forEach(w => { w.rotation.x += 0.25; });
+          } else if (isTouchReact) {
+            // Reacts with tickled giggle bounce!
+            robotGroup.position.y = bobiBaseY + Math.sin(time * 14) * 0.04;
+            robotGroup.rotation.z = Math.sin(time * 12) * 0.06;
           } else if (isDriving) {
             // Dynamic forward acceleration Segway lean & gentle balance sway
             robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.012;
+            robotGroup.position.z = Math.sin(time * 2.5) * 0.3;
             robotGroup.rotation.x = -0.07 + Math.sin(time * 8) * 0.02;
             robotGroup.rotation.z = Math.sin(time * 5) * 0.015;
+            wheelsRef.current.forEach(w => { w.rotation.x += 0.3; });
           } else if (isDancing) {
             // Cheerful robotic boogie celebration
             robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.08;
@@ -1727,7 +1912,9 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
           } else {
             // Lifelike calm balance breathing
             robotGroup.position.y = bobiBaseY + Math.sin(time * 2.5) * 0.008;
+            robotGroup.position.z = 0;
             robotGroup.rotation.x = 0;
+            robotGroup.rotation.y = 0;
             robotGroup.rotation.z = 0;
           }
 
@@ -1737,6 +1924,9 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
               headRef.current.rotation.x = 0.45;
               headRef.current.rotation.y = 0;
               headRef.current.rotation.z = 0;
+            } else if (isTouchReact) {
+              headRef.current.rotation.y = Math.sin(time * 14) * 0.25;
+              headRef.current.rotation.z = Math.sin(time * 10) * 0.12;
             } else if (isSpeaking) {
               // Enthusiastic speaking head nods
               headRef.current.rotation.x = -0.15 + Math.sin(time * 16) * 0.12;
@@ -1747,7 +1937,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
               headRef.current.rotation.z = -0.12 + Math.sin(time * 4) * 0.05;
               headRef.current.rotation.y = 0.12;
               headRef.current.rotation.x = Math.sin(time * 3) * 0.04;
-            } else if (isDriving) {
+            } else if (isDriving || isMoveObstacle) {
               // Forward attentive posture
               headRef.current.rotation.x = 0.06;
               headRef.current.rotation.y = Math.sin(time * 2) * 0.05;
@@ -1776,7 +1966,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
                 // Forearm and palm wave enthusiastically side-to-side
                 bobiLeftElbowRef.current.rotation.z = -0.45 + Math.sin(time * 12) * 0.55;
               }
-            } else if (isDriving) {
+            } else if (isDriving || isMoveObstacle) {
               // Arms poised outward for aerodynamic Segway balance
               leftArmRef.current.rotation.z = -0.32;
               leftArmRef.current.rotation.x = -0.15 + Math.sin(time * 6) * 0.04;
@@ -1795,7 +1985,13 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
           // Right Magnetic Claw Arm motion (Lifted outward away from body)
           if (rightArmRef.current) {
-            if (isSleepy) {
+            if (isMagnetOn) {
+              rightArmRef.current.rotation.z = 1.05 + Math.sin(time * 4) * 0.12;
+              rightArmRef.current.rotation.x = -0.25;
+              if (bobiRightElbowRef.current) {
+                bobiRightElbowRef.current.rotation.z = 0.45;
+              }
+            } else if (isSleepy) {
               rightArmRef.current.rotation.z = 0.12;
               rightArmRef.current.rotation.x = 0.12;
               if (bobiRightElbowRef.current) {
@@ -1808,7 +2004,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
               if (bobiRightElbowRef.current) {
                 bobiRightElbowRef.current.rotation.z = 0.45 + Math.sin(time * 10) * 0.4;
               }
-            } else if (isDriving) {
+            } else if (isDriving || isMoveObstacle) {
               // Symmetrical poise outward to the right
               rightArmRef.current.rotation.z = 0.32;
               rightArmRef.current.rotation.x = -0.15 + Math.sin(time * 6) * 0.04;
@@ -1951,22 +2147,35 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       }
 
       // Update Educational 3D Meshes & Overlays (Sensor radar, Brain aura, Shield, Battery spark)
-      const isEduRadar = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye' || actionTrigger === 'edu_sensor_sound' || actionTrigger === 'edu_sensor_touch';
-      const isEduBrain = actionTrigger === 'edu_brain';
+      const isEduRadar = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye' || actionTrigger === 'edu_sensor_sound' || actionTrigger === 'edu_sensor_touch' || actionTrigger === 'edu_move_obstacle';
+      const isEduBrain = actionTrigger === 'edu_brain' || actionTrigger === 'edu_brain_signal';
       const isEduShield = actionTrigger === 'edu_casing';
       const isEduBatteryFull = actionTrigger === 'edu_battery_full';
 
       if (eduRadarRef.current) {
         eduRadarRef.current.visible = isEduRadar;
         if (isEduRadar) {
+          eduRadarRef.current.position.z = robotGroup.position.z + 1.8;
+          eduRadarRef.current.position.x = robotGroup.position.x;
+          eduRadarRef.current.rotation.y = robotGroup.rotation.y;
           eduRadarRef.current.rotation.z += 0.04;
-          (eduRadarRef.current.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(time * 8) * 0.2;
+          const cycleTime = (time * 0.9) % 8.0;
+          const isDangerZone = actionTrigger === 'edu_move_obstacle' && cycleTime >= 3.0 && cycleTime < 5.8;
+          if (isDangerZone) {
+            (eduRadarRef.current.material as THREE.MeshBasicMaterial).color.setHex(0xef4444);
+            (eduRadarRef.current.material as THREE.MeshBasicMaterial).opacity = 0.65 + Math.sin(time * 16) * 0.25;
+          } else {
+            (eduRadarRef.current.material as THREE.MeshBasicMaterial).color.setHex(0x06b6d4);
+            (eduRadarRef.current.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(time * 8) * 0.2;
+          }
         }
       }
 
       if (eduBrainRingRef.current) {
         eduBrainRingRef.current.visible = isEduBrain;
         if (isEduBrain) {
+          eduBrainRingRef.current.position.z = robotGroup.position.z;
+          eduBrainRingRef.current.position.x = robotGroup.position.x;
           eduBrainRingRef.current.rotation.z += 0.05;
           const brainPulse = 1.0 + Math.sin(time * 6) * 0.12;
           eduBrainRingRef.current.scale.set(brainPulse, brainPulse, brainPulse);
@@ -1976,10 +2185,18 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       if (eduShieldRef.current) {
         eduShieldRef.current.visible = isEduShield;
         if (isEduShield) {
+          eduShieldRef.current.position.z = robotGroup.position.z;
+          eduShieldRef.current.position.x = robotGroup.position.x;
           eduShieldRef.current.rotation.y += 0.015;
           const shieldPulse = 1.0 + Math.sin(time * 4) * 0.04;
           eduShieldRef.current.scale.set(shieldPulse, shieldPulse, shieldPulse);
         }
+      }
+
+      if (bobiWallBeaconRef.current) {
+        const cycleTime = (time * 0.9) % 8.0;
+        const isAlarm = actionTrigger === 'edu_move_obstacle' && cycleTime >= 3.0 && cycleTime < 5.8;
+        (bobiWallBeaconRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = isAlarm ? 3.5 + Math.sin(time * 25) * 2.0 : 0.4;
       }
 
       if (eduBatterySparkRef.current) {
@@ -2092,3 +2309,5 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     </div>
   );
 };
+
+export default ThreeRobotViewer;
