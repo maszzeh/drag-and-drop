@@ -12,6 +12,7 @@ interface RobotAssemblyBoardProps {
   parts: RobotPart[];
   onPartInstalled: (partId: string) => void;
   onAllCompleted: () => void;
+  onOpenAnatomyLab?: () => void;
 }
 
 export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
@@ -19,6 +20,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
   parts,
   onPartInstalled,
   onAllCompleted,
+  onOpenAnatomyLab,
 }) => {
   const [draggedPartId, setDraggedPartId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
@@ -333,16 +335,28 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
           </div>
 
           {/* Robot Vocab Educational Box for 4-year-olds */}
-          <div className="mt-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs">
-            <div className="font-black flex items-center gap-1 text-emerald-800 mb-1">
-              <span>📚 KATA PINTAR ROBOTIK</span>
+          <div className="mt-5 p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-200 text-emerald-950 text-xs">
+            <div className="font-black flex items-center justify-between text-emerald-800 mb-1">
+              <span className="flex items-center gap-1">📚 KATA PINTAR ROBOTIK</span>
+              <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold">PAUD / TK</span>
             </div>
             <p className="text-[11px] text-emerald-900 leading-relaxed">
-              <strong>Sensor:</strong> Bagian mata kamera dan telinga robot untuk melihat serta mendeteksi rintangan di depan.
+              <strong>Sensor & Otak:</strong> Mata kamera untuk melihat jalan dan komputer kecil untuk berpikir mengingat perintah.
             </p>
             <p className="text-[11px] text-emerald-900 leading-relaxed mt-1">
-              <strong>Aktuator:</strong> Roda penggerak, sayap, dan tangan robot untuk bergerak sesuai perintah kode.
+              <strong>Baterai & Rangka:</strong> Baterai sebagai makanan tenaga robot dan rangka pelindung dari benturan.
             </p>
+            {onOpenAnatomyLab && (
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  onOpenAnatomyLab();
+                }}
+                className="mt-3 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-xs shadow-md shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 transition active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>🔬 Buka Lab 3D: Cara Kerja Sensor, Otak & Baterai!</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

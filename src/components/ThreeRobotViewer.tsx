@@ -51,6 +51,12 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
   const bobiEyesRef = useRef<THREE.Mesh[]>([]);
   const bobiMagnetGlowRef = useRef<THREE.Mesh | null>(null);
 
+  // Educational 3D Visual Overlays (Radar, Brain Aura, Shield, Battery Sparks)
+  const eduRadarRef = useRef<THREE.Mesh | null>(null);
+  const eduBrainRingRef = useRef<THREE.Mesh | null>(null);
+  const eduShieldRef = useRef<THREE.Mesh | null>(null);
+  const eduBatterySparkRef = useRef<THREE.Mesh | null>(null);
+
   const [viewAngle, setViewAngle] = useState<'front' | 'top'>('front');
   const setTopViewRef = useRef<(() => void) | null>(null);
   const setFrontViewRef = useRef<(() => void) | null>(null);
@@ -1335,6 +1341,66 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       });
     }
 
+    // --- 3D EDUCATIONAL VISUAL OVERLAYS (Sensor Radar, Brain Aura, Shield, Battery Sparks) ---
+    // 1. Sensor Radar Scanning Cone (Cyan Wireframe / Translucent cone pointing forward)
+    const radarGeo = new THREE.ConeGeometry(0.85, 2.6, 24, 1, true);
+    radarGeo.rotateX(Math.PI / 2);
+    const radarMat = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4,
+      transparent: true,
+      opacity: 0.35,
+      wireframe: true,
+      side: THREE.DoubleSide,
+    });
+    const radarMesh = new THREE.Mesh(radarGeo, radarMat);
+    radarMesh.position.set(0, robotType === 'biped' ? 1.25 : 0.8, 1.8);
+    radarMesh.visible = false;
+    scene.add(radarMesh);
+    eduRadarRef.current = radarMesh;
+
+    // 2. Brain Thinking Halo Ring (Pulsing Purple Digital Aura over head)
+    const brainRingGeo = new THREE.TorusGeometry(0.65, 0.045, 16, 48);
+    brainRingGeo.rotateX(Math.PI / 2);
+    const brainRingMat = new THREE.MeshBasicMaterial({
+      color: 0xa855f7,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const brainRingMesh = new THREE.Mesh(brainRingGeo, brainRingMat);
+    brainRingMesh.position.set(0, robotType === 'biped' ? 2.25 : 1.7, 0);
+    brainRingMesh.visible = false;
+    scene.add(brainRingMesh);
+    eduBrainRingRef.current = brainRingMesh;
+
+    // 3. Protective Casing Hologram Shield (Iridescent Cyan Dome)
+    const shieldGeo = new THREE.SphereGeometry(1.65, 24, 18);
+    const shieldMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.22,
+      roughness: 0.1,
+      metalness: 0.1,
+      wireframe: true,
+    });
+    const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+    shieldMesh.position.set(0, 0.65, 0);
+    shieldMesh.visible = false;
+    scene.add(shieldMesh);
+    eduShieldRef.current = shieldMesh;
+
+    // 4. Battery Electric Flow Sparks Ring
+    const sparkGeo = new THREE.TorusGeometry(0.42, 0.05, 16, 32);
+    const sparkMat = new THREE.MeshBasicMaterial({
+      color: 0x10b981,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
+    sparkMesh.position.set(0, 0.55, 0.6);
+    sparkMesh.visible = false;
+    scene.add(sparkMesh);
+    eduBatterySparkRef.current = sparkMesh;
+
     // 5. User Interaction: 3D Spherical Orbit Drag (Look from above, front, or rotate 360°)
     const orbitRadius = robotType === 'arm' ? 6.8 : robotType === 'biped' ? 6.4 : 5.8;
     const targetCenterY = robotType === 'arm' ? 0.55 : robotType === 'biped' ? 0.45 : 0.25;
@@ -1629,13 +1695,26 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
         } else if (robotType === 'biped') {
           // --- ROBO-BOBI (Humanoid Companion Social Robotics) ---
-          const isDriving = actionTrigger === 'move_forward';
-          const isWaving = actionTrigger === 'wave_hand' || isDancing;
-          const isSpeaking = actionTrigger === 'beep_sound';
+          const isDriving = actionTrigger === 'move_forward' || actionTrigger === 'edu_motor' || actionTrigger === 'edu_motor_drive';
+          const isWaving = actionTrigger === 'wave_hand' || isDancing || actionTrigger === 'edu_motor_arm';
+          const isSpeaking = actionTrigger === 'beep_sound' || actionTrigger === 'edu_brain';
+          const isSleepy = actionTrigger === 'edu_battery_low';
+          const isEnergized = actionTrigger === 'edu_battery_full';
+          const isSensorScan = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye';
 
           const bobiBaseY = 0.0 + yOffset;
 
-          if (isDriving) {
+          if (isSleepy) {
+            // Robot is exhausted / battery depleted
+            robotGroup.position.y = bobiBaseY - 0.24;
+            robotGroup.rotation.x = 0.15;
+            robotGroup.rotation.z = 0;
+          } else if (isEnergized) {
+            // Happy energetic bounce
+            robotGroup.position.y = bobiBaseY + Math.abs(Math.sin(time * 6)) * 0.14;
+            robotGroup.rotation.z = Math.sin(time * 5) * 0.04;
+            robotGroup.rotation.x = -0.04;
+          } else if (isDriving) {
             // Dynamic forward acceleration Segway lean & gentle balance sway
             robotGroup.position.y = bobiBaseY + Math.sin(time * 6) * 0.012;
             robotGroup.rotation.x = -0.07 + Math.sin(time * 8) * 0.02;
@@ -1654,7 +1733,11 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
           // Articulated Head & Friendly Gaze
           if (headRef.current) {
-            if (isSpeaking) {
+            if (isSleepy) {
+              headRef.current.rotation.x = 0.45;
+              headRef.current.rotation.y = 0;
+              headRef.current.rotation.z = 0;
+            } else if (isSpeaking) {
               // Enthusiastic speaking head nods
               headRef.current.rotation.x = -0.15 + Math.sin(time * 16) * 0.12;
               headRef.current.rotation.y = Math.sin(time * 8) * 0.1;
@@ -1679,7 +1762,13 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
           // Articulated 2-Segment Waving Left Arm (Lifted outward away from body)
           if (leftArmRef.current) {
-            if (isWaving) {
+            if (isSleepy) {
+              leftArmRef.current.rotation.z = -0.12;
+              leftArmRef.current.rotation.x = 0.12;
+              if (bobiLeftElbowRef.current) {
+                bobiLeftElbowRef.current.rotation.z = 0;
+              }
+            } else if (isWaving) {
               // Lift upper arm high outward to the left in a joyful wave
               leftArmRef.current.rotation.z = -1.25 + Math.sin(time * 4) * 0.15;
               leftArmRef.current.rotation.x = 0.2 + Math.sin(time * 3) * 0.12;
@@ -1706,7 +1795,13 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
           // Right Magnetic Claw Arm motion (Lifted outward away from body)
           if (rightArmRef.current) {
-            if (isDancing) {
+            if (isSleepy) {
+              rightArmRef.current.rotation.z = 0.12;
+              rightArmRef.current.rotation.x = 0.12;
+              if (bobiRightElbowRef.current) {
+                bobiRightElbowRef.current.rotation.z = 0;
+              }
+            } else if (isDancing) {
               // Cheerful celebration lift outward to the right
               rightArmRef.current.rotation.z = 1.25 + Math.sin(time * 5) * 0.2;
               rightArmRef.current.rotation.x = 0.2;
@@ -1733,16 +1828,22 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
           // Wheels Rotation when driving
           if (isDriving) {
             wheelsRef.current.forEach(w => {
-              w.rotation.x += 0.22;
+              w.rotation.x += 0.28;
             });
           }
 
           // Chest Battery Energy Core (Biological rhythm pulse)
           if (bobiChestCoreRef.current) {
-            const beat = (time * 3) % 1.0;
-            const isPulse = beat < 0.2 || (beat > 0.3 && beat < 0.45);
-            const intensity = isSpeaking ? 2.8 : isPulse ? 2.0 : 0.8;
-            (bobiChestCoreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = intensity;
+            if (isSleepy) {
+              (bobiChestCoreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.12;
+            } else if (isEnergized) {
+              (bobiChestCoreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 2.8;
+            } else {
+              const beat = (time * 3) % 1.0;
+              const isPulse = beat < 0.2 || (beat > 0.3 && beat < 0.45);
+              const intensity = isSpeaking ? 2.8 : isPulse ? 2.0 : 0.8;
+              (bobiChestCoreRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = intensity;
+            }
           }
 
           // Speaker Mouth Voice Illumination (pulses with voice waves)
@@ -1757,16 +1858,26 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
 
           // Antenna Communication Status Bulbs
           bobiAntennaBulbsRef.current.forEach((bulb, idx) => {
-            const pulse = isSpeaking || isDriving ? Math.sin(time * 15 + idx * Math.PI) > 0.3 : Math.sin(time * 3 + idx) > 0.5;
-            (bulb.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse ? 2.2 : 0.5;
+            const pulse = isSpeaking || isDriving || isSensorScan ? Math.sin(time * 18 + idx * Math.PI) > 0.2 : Math.sin(time * 3 + idx) > 0.5;
+            (bulb.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse ? 2.5 : 0.5;
           });
 
           // Blinking OLED Digital Eyes
           if (bobiEyesRef.current.length > 0) {
-            const blink = (time * 0.8) % 3.2 < 0.14;
-            bobiEyesRef.current.forEach(eye => {
-              (eye.material as THREE.MeshStandardMaterial).emissiveIntensity = blink ? 0.2 : 1.4;
-            });
+            if (isSleepy) {
+              bobiEyesRef.current.forEach(eye => {
+                (eye.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.08;
+              });
+            } else if (isSensorScan || isEnergized) {
+              bobiEyesRef.current.forEach(eye => {
+                (eye.material as THREE.MeshStandardMaterial).emissiveIntensity = 2.5;
+              });
+            } else {
+              const blink = (time * 0.8) % 3.2 < 0.14;
+              bobiEyesRef.current.forEach(eye => {
+                (eye.material as THREE.MeshStandardMaterial).emissiveIntensity = blink ? 0.2 : 1.4;
+              });
+            }
           }
 
           // Magnet Claw Force Field Spark Pulsing
@@ -1837,6 +1948,47 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
           ring.scale.set(scale, scale, 1);
           (ring.material as THREE.MeshBasicMaterial).opacity = (1.0 - cycle) * 0.45;
         });
+      }
+
+      // Update Educational 3D Meshes & Overlays (Sensor radar, Brain aura, Shield, Battery spark)
+      const isEduRadar = actionTrigger === 'edu_sensor' || actionTrigger === 'edu_sensor_eye' || actionTrigger === 'edu_sensor_sound' || actionTrigger === 'edu_sensor_touch';
+      const isEduBrain = actionTrigger === 'edu_brain';
+      const isEduShield = actionTrigger === 'edu_casing';
+      const isEduBatteryFull = actionTrigger === 'edu_battery_full';
+
+      if (eduRadarRef.current) {
+        eduRadarRef.current.visible = isEduRadar;
+        if (isEduRadar) {
+          eduRadarRef.current.rotation.z += 0.04;
+          (eduRadarRef.current.material as THREE.MeshBasicMaterial).opacity = 0.35 + Math.sin(time * 8) * 0.2;
+        }
+      }
+
+      if (eduBrainRingRef.current) {
+        eduBrainRingRef.current.visible = isEduBrain;
+        if (isEduBrain) {
+          eduBrainRingRef.current.rotation.z += 0.05;
+          const brainPulse = 1.0 + Math.sin(time * 6) * 0.12;
+          eduBrainRingRef.current.scale.set(brainPulse, brainPulse, brainPulse);
+        }
+      }
+
+      if (eduShieldRef.current) {
+        eduShieldRef.current.visible = isEduShield;
+        if (isEduShield) {
+          eduShieldRef.current.rotation.y += 0.015;
+          const shieldPulse = 1.0 + Math.sin(time * 4) * 0.04;
+          eduShieldRef.current.scale.set(shieldPulse, shieldPulse, shieldPulse);
+        }
+      }
+
+      if (eduBatterySparkRef.current) {
+        eduBatterySparkRef.current.visible = isEduBatteryFull;
+        if (isEduBatteryFull) {
+          eduBatterySparkRef.current.rotation.z -= 0.08;
+          const sparkPulse = 0.8 + Math.abs(Math.sin(time * 5)) * 0.4;
+          eduBatterySparkRef.current.scale.set(sparkPulse, sparkPulse, sparkPulse);
+        }
       }
 
       renderer.render(scene, camera);

@@ -7,9 +7,10 @@ import { sounds } from '../utils/audio';
 interface EduGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAnatomyLab?: () => void;
 }
 
-export const EduGuideModal: React.FC<EduGuideModalProps> = ({ isOpen, onClose }) => {
+export const EduGuideModal: React.FC<EduGuideModalProps> = ({ isOpen, onClose, onOpenAnatomyLab }) => {
   if (!isOpen) return null;
 
   return (
@@ -95,6 +96,23 @@ export const EduGuideModal: React.FC<EduGuideModalProps> = ({ isOpen, onClose })
             <li>• <strong>Level 4 (Robo-Aero):</strong> Drone terbang pengantar paket (4 Baling-baling motor udara, Sensor gyro ketinggian).</li>
             <li>• <strong>Level 5 (Robo-Puppy):</strong> Robot hewan bionik (Sensor telinga suara, 4 Kaki bionik, Ekor ceria gembira).</li>
           </ul>
+
+          {onOpenAnatomyLab && (
+            <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-indigo-50/60 p-3 rounded-xl border-indigo-200">
+              <div className="text-xs text-indigo-950 font-bold">
+                <span>💡 Guru dapat menggunakan <strong>Laboratorium Cara Kerja Robot (3D)</strong> untuk demonstrasi interaktif sensor, otak, dan baterai.</span>
+              </div>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  onOpenAnatomyLab();
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md shadow-indigo-200 transition active:scale-95 flex-shrink-0"
+              >
+                🔬 Buka Lab 3D Sekarang
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
