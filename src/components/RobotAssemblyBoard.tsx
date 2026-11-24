@@ -22,41 +22,77 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
   onAllCompleted,
 }) => {
   const [draggedPartId, setDraggedPartId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const [view3D, setView3D] = useState<boolean>(false);
 
   const installedCount = parts.filter(p => p.isInstalled).length;
   const totalCount = parts.length;
   const progressPercent = Math.round((installedCount / totalCount) * 100);
+  const draggedPart = parts.find(p => p.id === draggedPartId);
 
-  // Drag start handler - ONLY drags the robot part graphic (no text/labels)
+  // Global drag listeners to update custom floating drag preview at 60fps
+  React.useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (draggedPartId && (e.clientX !== 0 || e.clientY !== 0)) {
+        setCursorPos({ x: e.clientX, y: e.clientY });
+      }
+    };
+
+    const handleGlobalDragEnd = () => {
+      setDraggedPartId(null);
+      setCursorPos(null);
+      setActiveDropZone(null);
+    };
+
+    window.addEventListener('dragover', handleGlobalDragOver);
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+
+    return () => {
+      window.removeEventListener('dragover', handleGlobalDragOver);
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
+    };
+  }, [draggedPartId]);
+
+  // Drag start handler - ALWAYS reveals the floating robot part graphic under cursor
   const handleDragStart = (e: React.DragEvent, part: RobotPart) => {
     if (part.isInstalled) return;
     setDraggedPartId(part.id);
+    setCursorPos({ x: e.clientX, y: e.clientY });
     e.dataTransfer.setData('text/plain', part.id);
     e.dataTransfer.effectAllowed = 'copyMove';
 
-    // Tell the browser to only render the robot part graphic as the drag preview
-    const cardEl = e.currentTarget as HTMLElement;
-    const visualEl = cardEl.querySelector('.robot-part-drag-preview') as HTMLElement;
-    if (visualEl && e.dataTransfer.setDragImage) {
-      const offsetX = visualEl.offsetWidth / 2;
-      const offsetY = visualEl.offsetHeight / 2;
-      e.dataTransfer.setDragImage(visualEl, offsetX, offsetY);
+    // Hide native browser ghost so our crisp custom floating DragOverlay displays cleanly
+    if (e.dataTransfer.setDragImage) {
+      const transparentImg = new Image();
+      transparentImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      e.dataTransfer.setDragImage(transparentImg, 0, 0);
     }
 
     sounds.playPop();
     sounds.speak(`Tarik ${part.name}`);
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    if (e.clientX !== 0 || e.clientY !== 0) {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
   const handleDragEnd = () => {
     setDraggedPartId(null);
+    setCursorPos(null);
     setActiveDropZone(null);
   };
 
   // Drag over target slot
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
+    if (e.clientX !== 0 || e.clientY !== 0) {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    }
     setActiveDropZone(targetId);
   };
 
@@ -68,6 +104,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
   const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     setActiveDropZone(null);
+    setCursorPos(null);
     const droppedPartId = e.dataTransfer.getData('text/plain') || draggedPartId;
 
     if (!droppedPartId) return;
@@ -205,6 +242,7 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                 {/* Visual Target Drop Zones with Real Robot Part Contours */}
                 {parts.map(part => {
                   const isHovered = activeDropZone === part.targetId;
+                  const isBeingDragged = draggedPartId === part.id;
 
                   return (
                     <div
@@ -216,7 +254,9 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                         part.isInstalled
                           ? 'z-20 scale-100 filter drop-shadow-md animate-fadeIn'
                           : isHovered
-                          ? 'z-30 scale-105 filter drop-shadow-lg ring-4 ring-sky-300 rounded-3xl animate-pulse'
+                          ? 'z-30 scale-105 filter drop-shadow-lg ring-4 ring-sky-400 rounded-3xl bg-blue-100/40 animate-pulse'
+                          : isBeingDragged
+                          ? 'z-25 scale-102 ring-4 ring-blue-400/80 rounded-3xl bg-blue-50/40 animate-pulse'
                           : 'z-10 opacity-75 hover:opacity-100 hover:scale-102'
                       }`}
                       style={{
@@ -292,16 +332,19 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
                     key={part.id}
                     draggable={!part.isInstalled}
                     onDragStart={e => handleDragStart(e, part)}
+                    onDrag={handleDrag}
                     onDragEnd={handleDragEnd}
-                    className={`rounded-2xl p-3 border-2 transition-all duration-200 flex items-center gap-3 ${
+                    className={`rounded-2xl p-3 border-2 transition-all duration-200 flex items-center gap-3 select-none ${
                       part.isInstalled
                         ? 'bg-slate-100/90 border-slate-200 opacity-60 cursor-default'
-                        : 'bg-white hover:bg-blue-50/50 border-amber-300 hover:border-blue-400 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing hover:-translate-y-0.5 active:scale-95'
+                        : draggedPartId === part.id
+                        ? 'opacity-40 border-dashed border-blue-500 bg-blue-50/60 shadow-inner cursor-grabbing'
+                        : 'bg-white hover:bg-blue-50/50 border-amber-300 hover:border-blue-400 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing hover:-translate-y-0.5'
                     }`}
                   >
-                    {/* Real Robot Part Vector Visual (Used as the solitary drag preview) */}
+                    {/* Real Robot Part Vector Visual (Solitary drag preview) */}
                     <div
-                      className={`robot-part-drag-preview w-24 h-18 rounded-2xl flex items-center justify-center p-1.5 flex-shrink-0 relative ${
+                      className={`robot-part-drag-preview w-24 h-20 rounded-2xl flex items-center justify-center p-1.5 flex-shrink-0 relative pointer-events-none select-none ${
                         part.isInstalled ? 'bg-slate-200 opacity-60' : 'bg-white border-2 border-blue-200 shadow-md shadow-blue-100/50'
                       }`}
                     >
@@ -355,6 +398,24 @@ export const RobotAssemblyBoard: React.FC<RobotAssemblyBoardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Floating Drag Preview Overlay - ALWAYS renders the robot part under the cursor! */}
+      {draggedPart && cursorPos && (
+        <div
+          className="fixed pointer-events-none z-[99999] -translate-x-1/2 -translate-y-1/2 select-none"
+          style={{
+            left: `${cursorPos.x}px`,
+            top: `${cursorPos.y}px`,
+          }}
+        >
+          <div className="w-24 h-20 bg-white/95 backdrop-blur-md rounded-2xl p-2 border-3 border-blue-500 shadow-2xl flex items-center justify-center scale-115 ring-4 ring-blue-300/60 animate-pulse">
+            <RobotPartVisual partId={draggedPart.id} mode="full" />
+          </div>
+          <div className="text-center mt-1 text-[11px] font-black bg-blue-600 text-white px-2.5 py-0.5 rounded-full shadow-lg whitespace-nowrap">
+            {draggedPart.name}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
