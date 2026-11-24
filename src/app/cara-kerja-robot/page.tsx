@@ -480,6 +480,7 @@ export default function CaraKerjaRobotPage() {
               <ThreeRobotViewer
                 robotType={robotType}
                 actionTrigger={eduAnimation}
+                showPlaygroundArena={true}
                 className="w-full h-full"
               />
 

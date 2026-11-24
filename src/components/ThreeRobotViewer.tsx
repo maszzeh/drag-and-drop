@@ -10,6 +10,7 @@ interface ThreeRobotViewerProps {
   actionTrigger?: string | null;
   className?: string;
   yOffset?: number;
+  showPlaygroundArena?: boolean;
 }
 
 export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
@@ -18,6 +19,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
   actionTrigger = null,
   className = '',
   yOffset = 0,
+  showPlaygroundArena = false,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const robotGroupRef = useRef<THREE.Group | null>(null);
@@ -80,8 +82,14 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
       camera.position.set(0, 1.4, 6.8);
       camera.lookAt(0, 0.55, 0);
     } else if (robotType === 'biped') {
-      camera.position.set(2.4, 2.0, 7.0);
-      camera.lookAt(0, 0.45, 0.6);
+      if (showPlaygroundArena) {
+        camera.position.set(2.4, 2.0, 7.0);
+        camera.lookAt(0, 0.45, 0.6);
+      } else {
+        // Tampilan asli workbench drag and drop (bersih tanpa lapangan/tembok)
+        camera.position.set(0, 0.9, 6.4);
+        camera.lookAt(0, 0.45, 0);
+      }
     } else {
       camera.position.set(0, 0.6, 5.8);
       camera.lookAt(0, 0.25, 0);
@@ -123,7 +131,7 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     platformRing.rotation.x = -Math.PI / 2;
     platformRing.position.y = -1.02;
 
-    if (robotType !== 'biped') {
+    if (!showPlaygroundArena || robotType !== 'biped') {
       scene.add(platform);
       scene.add(platformRing);
     }
@@ -340,122 +348,124 @@ export const ThreeRobotViewer: React.FC<ThreeRobotViewerProps> = ({
     }
 
     if (robotType === 'biped') {
-      // --- ARENA LAPANGAN BERMAIN ROBOT (Testing Playground Field) ---
-      const fieldGroup = new THREE.Group();
-      scene.add(fieldGroup);
-      bobiFieldGroupRef.current = fieldGroup;
+      // --- ARENA LAPANGAN BERMAIN ROBOT & TEMBOK (Hanya untuk fitur simulasi / playground) ---
+      if (showPlaygroundArena) {
+        const fieldGroup = new THREE.Group();
+        scene.add(fieldGroup);
+        bobiFieldGroupRef.current = fieldGroup;
 
-      // Field Floor Mat (Turf Green / High-tech Arena Mat)
-      const fieldFloorGeo = new THREE.PlaneGeometry(14, 18);
-      const fieldFloorMat = new THREE.MeshStandardMaterial({
-        color: 0x0f2e22, // Deep turf green / robot test mat
-        roughness: 0.8,
-        metalness: 0.1,
-      });
-      const fieldFloor = new THREE.Mesh(fieldFloorGeo, fieldFloorMat);
-      fieldFloor.rotation.x = -Math.PI / 2;
-      fieldFloor.position.y = -1.14;
-      fieldFloor.receiveShadow = true;
-      fieldGroup.add(fieldFloor);
+        // Field Floor Mat (Turf Green / High-tech Arena Mat)
+        const fieldFloorGeo = new THREE.PlaneGeometry(14, 18);
+        const fieldFloorMat = new THREE.MeshStandardMaterial({
+          color: 0x0f2e22, // Deep turf green / robot test mat
+          roughness: 0.8,
+          metalness: 0.1,
+        });
+        const fieldFloor = new THREE.Mesh(fieldFloorGeo, fieldFloorMat);
+        fieldFloor.rotation.x = -Math.PI / 2;
+        fieldFloor.position.y = -1.14;
+        fieldFloor.receiveShadow = true;
+        fieldGroup.add(fieldFloor);
 
-      // Arena Grid Lines (Lighter Emerald Grid)
-      const arenaGrid = new THREE.GridHelper(14, 14, 0x10b981, 0x064e3b);
-      arenaGrid.position.y = -1.138;
-      fieldGroup.add(arenaGrid);
+        // Arena Grid Lines (Lighter Emerald Grid)
+        const arenaGrid = new THREE.GridHelper(14, 14, 0x10b981, 0x064e3b);
+        arenaGrid.position.y = -1.138;
+        fieldGroup.add(arenaGrid);
 
-      // Start Area Marking Box (Cyan outlined zone behind Bobi)
-      const startBoxGeo = new THREE.RingGeometry(0.7, 0.85, 32);
-      const startBoxMat = new THREE.MeshBasicMaterial({
-        color: 0x22d3ee,
-        side: THREE.DoubleSide,
-      });
-      const startBox = new THREE.Mesh(startBoxGeo, startBoxMat);
-      startBox.rotation.x = -Math.PI / 2;
-      startBox.position.set(0, -1.135, -1.2);
-      fieldGroup.add(startBox);
+        // Start Area Marking Box (Cyan outlined zone behind Bobi)
+        const startBoxGeo = new THREE.RingGeometry(0.7, 0.85, 32);
+        const startBoxMat = new THREE.MeshBasicMaterial({
+          color: 0x22d3ee,
+          side: THREE.DoubleSide,
+        });
+        const startBox = new THREE.Mesh(startBoxGeo, startBoxMat);
+        startBox.rotation.x = -Math.PI / 2;
+        startBox.position.set(0, -1.135, -1.2);
+        fieldGroup.add(startBox);
 
-      // 4 Arena Corner Safety Pylons (Orange/White Traffic Pylons with glowing LED tips)
-      const pylonPositions = [
-        [-5.5, -6.5],
-        [5.5, -6.5],
-        [-5.5, 6.5],
-        [5.5, 6.5],
-      ];
-      pylonPositions.forEach(([px, pz]) => {
-        const pylonBase = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.2, 0.32, 0.75, 16),
-          new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+        // 4 Arena Corner Safety Pylons (Orange/White Traffic Pylons with glowing LED tips)
+        const pylonPositions = [
+          [-5.5, -6.5],
+          [5.5, -6.5],
+          [-5.5, 6.5],
+          [5.5, 6.5],
+        ];
+        pylonPositions.forEach(([px, pz]) => {
+          const pylonBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.2, 0.32, 0.75, 16),
+            new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+          );
+          pylonBase.position.set(px, -0.76, pz);
+          fieldGroup.add(pylonBase);
+
+          const pylonTip = new THREE.Mesh(
+            new THREE.SphereGeometry(0.09, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+          );
+          pylonTip.position.set(px, -0.32, pz);
+          fieldGroup.add(pylonTip);
+        });
+
+        // --- RINTANGAN TEMBOK 3D (Wall Obstacle with Hazard Caution Stripes) ---
+        const wallGroup = new THREE.Group();
+        wallGroup.position.set(0, -1.14, 2.7); // Positioned ahead in front of Bobi
+        scene.add(wallGroup);
+        bobiWallGroupRef.current = wallGroup;
+
+        // Base wall blocks (Sturdy brick / composite barrier wall)
+        const wallGeo = new THREE.BoxGeometry(3.6, 1.4, 0.5);
+        const wallMat = new THREE.MeshStandardMaterial({
+          color: 0x334155, // Slate barrier
+          roughness: 0.6,
+          metalness: 0.2,
+        });
+        const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+        wallMesh.position.y = 0.7;
+        wallMesh.castShadow = true;
+        wallMesh.receiveShadow = true;
+        wallGroup.add(wallMesh);
+
+        // Wall Hazard Caution Stripes (Yellow warning band)
+        const stripeGeo = new THREE.BoxGeometry(3.4, 0.3, 0.52);
+        const stripeMat = new THREE.MeshStandardMaterial({
+          color: 0xfbbf24, // Warning amber yellow
+          roughness: 0.4,
+        });
+        const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
+        stripeMesh.position.y = 0.7;
+        wallGroup.add(stripeMesh);
+
+        // Hazard Black Chevrons (Accent dark bands)
+        [-1.0, -0.5, 0, 0.5, 1.0].forEach((cx) => {
+          const chevron = new THREE.Mesh(
+            new THREE.BoxGeometry(0.22, 0.32, 0.54),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 })
+          );
+          chevron.position.set(cx, 0.7, 0);
+          wallGroup.add(chevron);
+        });
+
+        // Top Red Warning Flashing Beacon Light
+        const beaconGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.22, 16);
+        const beaconMat = new THREE.MeshStandardMaterial({
+          color: 0xef4444,
+          emissive: 0xef4444,
+          emissiveIntensity: 1.5,
+          roughness: 0.2,
+        });
+        const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+        beaconMesh.position.set(0, 1.52, 0);
+        wallGroup.add(beaconMesh);
+        bobiWallBeaconRef.current = beaconMesh;
+
+        // Red Warning Plate: "AWAS TEMBOK"
+        const signBoard = new THREE.Mesh(
+          new THREE.BoxGeometry(1.6, 0.35, 0.56),
+          new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 })
         );
-        pylonBase.position.set(px, -0.76, pz);
-        fieldGroup.add(pylonBase);
-
-        const pylonTip = new THREE.Mesh(
-          new THREE.SphereGeometry(0.09, 12, 12),
-          new THREE.MeshBasicMaterial({ color: 0x22d3ee })
-        );
-        pylonTip.position.set(px, -0.32, pz);
-        fieldGroup.add(pylonTip);
-      });
-
-      // --- RINTANGAN TEMBOK 3D (Wall Obstacle with Hazard Caution Stripes) ---
-      const wallGroup = new THREE.Group();
-      wallGroup.position.set(0, -1.14, 2.7); // Positioned ahead in front of Bobi
-      scene.add(wallGroup);
-      bobiWallGroupRef.current = wallGroup;
-
-      // Base wall blocks (Sturdy brick / composite barrier wall)
-      const wallGeo = new THREE.BoxGeometry(3.6, 1.4, 0.5);
-      const wallMat = new THREE.MeshStandardMaterial({
-        color: 0x334155, // Slate barrier
-        roughness: 0.6,
-        metalness: 0.2,
-      });
-      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-      wallMesh.position.y = 0.7;
-      wallMesh.castShadow = true;
-      wallMesh.receiveShadow = true;
-      wallGroup.add(wallMesh);
-
-      // Wall Hazard Caution Stripes (Yellow warning band)
-      const stripeGeo = new THREE.BoxGeometry(3.4, 0.3, 0.52);
-      const stripeMat = new THREE.MeshStandardMaterial({
-        color: 0xfbbf24, // Warning amber yellow
-        roughness: 0.4,
-      });
-      const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
-      stripeMesh.position.y = 0.7;
-      wallGroup.add(stripeMesh);
-
-      // Hazard Black Chevrons (Accent dark bands)
-      [-1.0, -0.5, 0, 0.5, 1.0].forEach((cx) => {
-        const chevron = new THREE.Mesh(
-          new THREE.BoxGeometry(0.22, 0.32, 0.54),
-          new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 })
-        );
-        chevron.position.set(cx, 0.7, 0);
-        wallGroup.add(chevron);
-      });
-
-      // Top Red Warning Flashing Beacon Light
-      const beaconGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.22, 16);
-      const beaconMat = new THREE.MeshStandardMaterial({
-        color: 0xef4444,
-        emissive: 0xef4444,
-        emissiveIntensity: 1.5,
-        roughness: 0.2,
-      });
-      const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-      beaconMesh.position.set(0, 1.52, 0);
-      wallGroup.add(beaconMesh);
-      bobiWallBeaconRef.current = beaconMesh;
-
-      // Red Warning Plate: "AWAS TEMBOK"
-      const signBoard = new THREE.Mesh(
-        new THREE.BoxGeometry(1.6, 0.35, 0.56),
-        new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 })
-      );
-      signBoard.position.set(0, 1.15, 0);
-      wallGroup.add(signBoard);
+        signBoard.position.set(0, 1.15, 0);
+        wallGroup.add(signBoard);
+      }
 
       // --- ROBO-BOBI (High-Fidelity Humanoid Companion Robot) ---
       const bobiGroup = new THREE.Group();
